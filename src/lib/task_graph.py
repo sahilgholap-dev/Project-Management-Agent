@@ -25,17 +25,24 @@ class TaskGraph:
                 self.successors[pred].add(succ)
 
     @classmethod
-    def for_project(cls, conn: sqlite3.Connection, project_id: int) -> TaskGraph:
-        """Graph over the project's schedulable tasks: not cancelled AND
-        carrying an effort estimate. A NULL-effort task (NEW-OQ 4 treatment)
-        has no duration, so it cannot participate in CPM; edges through it are
-        not traversed until a reviewer supplies an estimate — the task's own
-        Tier 1 flag is what keeps that visible."""
+    def for_project(
+        cls, conn: sqlite3.Connection, project_id: int,
+        include_unestimated: bool = False,
+    ) -> TaskGraph:
+        """Graph over the project's schedulable tasks (not cancelled).
+
+        By default NULL-effort tasks are excluded — they have no duration and
+        cannot participate in CPM (NEW-OQ 4 treatment). The Scheduler uses
+        include_unestimated=True to build the FULL graph first, so exclusion
+        cascades: everything downstream of an unestimated task is also
+        excluded and flagged, never scheduled as if the dependency didn't
+        exist."""
+        effort_filter = "" if include_unestimated else " AND effort_hours IS NOT NULL"
         task_ids = [
             r["task_id"]
             for r in conn.execute(
                 "SELECT task_id FROM tasks WHERE project_id = ? AND status != 'cancelled'"
-                " AND effort_hours IS NOT NULL",
+                + effort_filter,
                 (project_id,),
             )
         ]
@@ -57,6 +64,16 @@ class TaskGraph:
             return list(sorter.static_order())
         except CycleError as err:
             raise DependencyCycleError(f"dependency cycle detected: {err.args[1]}") from err
+
+    def without(self, excluded: set[int]) -> TaskGraph:
+        """A new graph with the excluded nodes (and their edges) removed."""
+        remaining = [t for t in self.task_ids if t not in excluded]
+        edges = [
+            (pred, succ)
+            for succ, preds in self.predecessors.items() if succ not in excluded
+            for pred in preds if pred not in excluded
+        ]
+        return TaskGraph(remaining, edges)
 
     def descendants(self, task_id: int) -> set[int]:
         """Every task downstream of task_id (excluding itself)."""

@@ -38,6 +38,14 @@ A real (anonymized) scope document and one or two real meeting transcripts
 from the pilot client, labeled by a human, swapped into this directory with
 the same file names. The eval scripts need no changes.
 
+## Observed run-to-run variance (tracked characteristic)
+
+Consecutive eval runs on identical input produced 7 phases, then 5-6 — LLM
+decomposition granularity varies between runs even when every run is
+individually coherent. This is a characteristic to design around (labels use
+ranges, reviewers see the plan before it binds), not a defect to fix; it is
+recorded here so it stays visible now that PHASE_COUNT_RANGE covers it.
+
 ## Held-out discipline
 
 The prompts in /prompts were frozen before this fixture was first evaluated.

@@ -96,7 +96,9 @@ def compute_cpm(
         ls[t] = latest - durations[t] + 1
 
     results = {}
-    scope = restrict_to if restrict_to is not None else set(order)
+    # intersect with the graph: a restricted re-run may name tasks that are
+    # currently excluded from CPM (unestimated / blocked-downstream)
+    scope = (restrict_to if restrict_to is not None else set(order)) & set(order)
     for t in scope:
         if t in fixed_ef:
             continue
@@ -134,18 +136,19 @@ def _load_inputs(conn: sqlite3.Connection, project_id: int):
     return project, calendar, tasks
 
 
-def _flag_unestimated_tasks(conn: sqlite3.Connection, project_id: int) -> int:
+def _flag_unestimated_tasks(conn: sqlite3.Connection, project_id: int) -> set[int]:
     """A NULL effort estimate gets the NEW-OQ 4 treatment: the task cannot
     enter CPM, so it is excluded, flagged, and raised as a Tier 1 item —
     never scheduled on a guessed number. Idempotent: only unflagged tasks
-    raise a new item."""
+    raise a new item. Returns ALL unestimated task ids (flagged or not)."""
     rows = conn.execute(
-        "SELECT task_id, title FROM tasks"
-        " WHERE project_id = ? AND status != 'cancelled'"
-        "   AND effort_hours IS NULL AND needs_clarification IS NULL",
+        "SELECT task_id, title, needs_clarification FROM tasks"
+        " WHERE project_id = ? AND status != 'cancelled' AND effort_hours IS NULL",
         (project_id,),
     ).fetchall()
     for row in rows:
+        if row["needs_clarification"] is not None:
+            continue
         conn.execute(
             "UPDATE tasks SET needs_clarification ="
             " 'no effort estimate; excluded from scheduling until estimated'"
@@ -159,7 +162,40 @@ def _flag_unestimated_tasks(conn: sqlite3.Connection, project_id: int) -> int:
                        " a reviewer supplies one"},
             created_by_skill="scheduler",
         )
-    return len(rows)
+    return {row["task_id"] for row in rows}
+
+
+_BLOCKED_MARKER = "scheduling blocked: depends on unestimated task(s)"
+
+
+def _flag_blocked_downstream(
+    conn: sqlite3.Connection, project_id: int, blocked: set[int]
+) -> None:
+    """Cascading exclusion: a task downstream of an unestimated task cannot
+    have trustworthy dates either — it is excluded from CPM and flagged, not
+    scheduled as if the dependency didn't exist. Idempotent via the marker."""
+    for task_id in sorted(blocked):
+        row = conn.execute(
+            "SELECT title, needs_clarification FROM tasks WHERE task_id = ?", (task_id,)
+        ).fetchone()
+        if row["needs_clarification"] and _BLOCKED_MARKER in row["needs_clarification"]:
+            continue
+        note = (
+            f"{row['needs_clarification']}; {_BLOCKED_MARKER}"
+            if row["needs_clarification"] else _BLOCKED_MARKER
+        )
+        conn.execute(
+            "UPDATE tasks SET needs_clarification = ? WHERE task_id = ?",
+            (note, task_id),
+        )
+        raise_review_item(
+            conn, project_id, "clarification",
+            {"task_id": task_id, "title": row["title"],
+             "reason": "task depends (directly or transitively) on a task without"
+                       " an effort estimate; excluded from CPM until the upstream"
+                       " estimate is supplied"},
+            created_by_skill="scheduler",
+        )
 
 
 def schedule_project(
@@ -172,7 +208,20 @@ def schedule_project(
     on_critical_path. Returns {task_id: {planned_start, planned_end, slack_days,
     on_critical_path}} for the scheduled scope."""
     project, calendar, tasks = _load_inputs(conn, project_id)
-    _flag_unestimated_tasks(conn, project_id)
+
+    # NEW-OQ 4 cascade: unestimated tasks AND everything downstream of them
+    # are excluded from CPM and flagged — a schedule must never look complete
+    # while silently depending on an unknown.
+    unestimated = _flag_unestimated_tasks(conn, project_id)
+    blocked_downstream: set[int] = set()
+    if unestimated:
+        full_graph = TaskGraph.for_project(conn, project_id, include_unestimated=True)
+        for u in unestimated:
+            blocked_downstream |= full_graph.descendants(u)
+        blocked_downstream -= unestimated
+        _flag_blocked_downstream(conn, project_id, blocked_downstream)
+        for t in blocked_downstream:
+            tasks.pop(t, None)
     if not tasks:
         conn.commit()
         return {}
@@ -182,7 +231,7 @@ def schedule_project(
     axis = _build_axis(calendar, start, end)
     project_end_idx = _idx_at_or_before(axis, end)
 
-    graph = TaskGraph.for_project(conn, project_id)
+    graph = TaskGraph.for_project(conn, project_id).without(blocked_downstream)
     durations, es_floor, lf_cap = {}, {}, {}
     for t, row in tasks.items():
         durations[t] = max(1, math.ceil(row["effort_hours"] / calendar.hours_per_day))

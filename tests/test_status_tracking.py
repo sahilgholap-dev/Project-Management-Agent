@@ -226,6 +226,38 @@ def test_second_cycle_updates_risk_instead_of_duplicating(world):
     ).fetchone()["n"] == 2  # alert each cycle, register entry updated in place
 
 
+def test_unreported_hours_flag_themselves(world):
+    """Review decision (Phase 3 review, item 3): a started task with no
+    reported hours must raise its own flag — missing cost data never reads
+    as a healthy CV."""
+    world.execute("DELETE FROM status_reports WHERE task_id = 2")  # T2 started, no hours
+    world.commit()
+    result = status_tracking.run_cycle(world, PROJECT_ID, date(2026, 8, 10),
+                                       FakeSonnet([]))
+    assert result["evm"].unreported_started_tasks == (2,)
+    assert result["evm"].cost_data_complete is False
+    item = world.execute(
+        "SELECT tier, payload FROM review_queue WHERE item_type = 'clarification'"
+    ).fetchone()
+    assert item["tier"] == 1
+    payload = json.loads(item["payload"])
+    assert payload["cv_understated"] is True and payload["unreported_task_ids"] == [2]
+
+
+def test_todo_tasks_do_not_count_as_unreported(world):
+    world.execute("DELETE FROM status_reports WHERE task_id = 2")
+    world.execute("UPDATE tasks SET status = 'todo', percent_complete = NULL"
+                  " WHERE task_id = 2")
+    world.commit()
+    result = status_tracking.run_cycle(world, PROJECT_ID, date(2026, 8, 10),
+                                       FakeSonnet([]))
+    assert result["evm"].cost_data_complete is True
+    n = world.execute(
+        "SELECT COUNT(*) AS n FROM review_queue WHERE item_type = 'clarification'"
+    ).fetchone()["n"]
+    assert n == 0
+
+
 def test_healthy_cycle_raises_nothing(world):
     status_tracking.run_cycle(world, PROJECT_ID, date(2026, 8, 10), FakeSonnet([]))
     assert world.execute("SELECT COUNT(*) AS n FROM review_queue").fetchone()["n"] == 0

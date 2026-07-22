@@ -106,6 +106,82 @@ def test_unestimated_task_excluded_from_cpm_and_flagged(world):
     assert got == ka.EXPECTED_SCHEDULE  # estimated tasks unaffected
 
 
+def test_unestimated_exclusion_cascades_downstream(world):
+    """Review decision (Phase 3 review, item 2): a task depending — directly
+    or transitively — on an unestimated task is ALSO excluded from CPM and
+    flagged. The schedule must never look complete while silently depending
+    on an unknown."""
+    world.execute(
+        "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours)"
+        " VALUES (99, 2, ?, 'unestimated', NULL)",
+        (ka.PROJECT_ID,),
+    )
+    world.execute(
+        "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours)"
+        " VALUES (100, 2, ?, 'direct downstream', 16)",
+        (ka.PROJECT_ID,),
+    )
+    world.execute(
+        "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours)"
+        " VALUES (101, 2, ?, 'transitive downstream', 8)",
+        (ka.PROJECT_ID,),
+    )
+    world.executemany("INSERT INTO task_dependencies VALUES (?, ?)",
+                      [(99, 100), (100, 101)])
+    world.commit()
+    scheduler.schedule_project(world, ka.PROJECT_ID)
+
+    for task_id in (100, 101):
+        row = world.execute(
+            "SELECT planned_start, needs_clarification FROM tasks WHERE task_id = ?",
+            (task_id,),
+        ).fetchone()
+        assert row["planned_start"] is None, f"task {task_id} was scheduled"
+        assert "scheduling blocked" in row["needs_clarification"]
+    n = world.execute(
+        "SELECT COUNT(*) AS n FROM review_queue WHERE item_type = 'clarification'"
+    ).fetchone()["n"]
+    assert n == 3  # 99 unestimated + 100 and 101 blocked-downstream
+
+    # estimated tasks not downstream of the unknown are untouched
+    got = {
+        r["task_id"]: (r["planned_start"], r["planned_end"], r["slack_days"],
+                       bool(r["on_critical_path"]))
+        for r in world.execute(
+            "SELECT task_id, planned_start, planned_end, slack_days, on_critical_path"
+            " FROM tasks WHERE task_id < 99"
+        )
+    }
+    assert got == ka.EXPECTED_SCHEDULE
+
+
+def test_cascade_flagging_is_idempotent_and_appends_notes(world):
+    world.execute(
+        "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours)"
+        " VALUES (99, 2, ?, 'unestimated', NULL)",
+        (ka.PROJECT_ID,),
+    )
+    world.execute(
+        "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours,"
+        " needs_clarification)"
+        " VALUES (100, 2, ?, 'downstream', 16, 'already had a question')",
+        (ka.PROJECT_ID,),
+    )
+    world.execute("INSERT INTO task_dependencies VALUES (99, 100)")
+    world.commit()
+    scheduler.schedule_project(world, ka.PROJECT_ID)
+    scheduler.schedule_project(world, ka.PROJECT_ID)  # no duplicate items
+
+    row = world.execute(
+        "SELECT needs_clarification FROM tasks WHERE task_id = 100"
+    ).fetchone()
+    assert row["needs_clarification"].startswith("already had a question; ")
+    n = world.execute(
+        "SELECT COUNT(*) AS n FROM review_queue WHERE item_type = 'clarification'"
+    ).fetchone()["n"]
+    assert n == 2  # one for 99, one for 100 — once each
+
+
 def test_unestimated_flagging_is_idempotent(world):
     world.execute(
         "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours)"

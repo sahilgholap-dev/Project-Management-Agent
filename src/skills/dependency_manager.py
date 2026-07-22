@@ -83,6 +83,8 @@ def handle_slip(conn: sqlite3.Connection, task_id: int) -> dict:
 
     diffs = {}
     for t in affected:
+        if t not in new_dates:
+            continue  # excluded from CPM (unestimated / blocked-downstream)
         old_end = old_dates.get(t, (None, None))[1]
         new_end = new_dates[t]["planned_end"].isoformat()
         if old_end != new_end:

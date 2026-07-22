@@ -178,6 +178,20 @@ def run_cycle(
     )
     breaches = breach_thresholds(snap, threshold_hours)
 
+    # Missing cost data flags itself (review decision, Phase 3): started tasks
+    # with no reported hours make CV understated — the flag repeats each cycle
+    # until the data exists, because "no news" must never read as "healthy".
+    if snap.unreported_started_tasks:
+        raise_review_item(
+            conn, project_id, "clarification",
+            {"reason": "cost data incomplete: started task(s) have no reported"
+                       " hours, so Actual Cost — and Cost Variance — is"
+                       " understated and cannot be trusted this cycle",
+             "unreported_task_ids": list(snap.unreported_started_tasks),
+             "cv_understated": True},
+            created_by_skill="status_tracking",
+        )
+
     for name, value in breaches.items():
         pretty = name.replace("_", " ")
         risk_id, created = _upsert_rule_risk(
@@ -206,6 +220,7 @@ def run_cycle(
         output_summary={
             "pv": snap.planned_value, "ev": snap.earned_value, "ac": snap.actual_cost,
             "sv": round(snap.schedule_variance, 2), "cv": round(snap.cost_variance, 2),
+            "cost_data_complete": snap.cost_data_complete,
             "breaches": sorted(breaches),
         },
         project_id=project_id,
