@@ -18,12 +18,17 @@ escalation_delay_hours — each subject to project-level config overrides
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
+from datetime import UTC, datetime
 
 from src import config_loader
 from src.lib import audit
 
 _SQLITE_TS = "%Y-%m-%d %H:%M:%S"
+
+
+def _utcnow() -> datetime:
+    """Naive UTC, matching sqlite datetime('now') strings."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _parse_ts(value: str) -> datetime:
@@ -38,7 +43,7 @@ def _log_stage(
         "INSERT INTO escalation_log (item_id, stage, reason, outcome, occurred_at)"
         " VALUES (?, ?, ?, ?, ?)",
         (item_id, stage, reason, outcome,
-         (now or datetime.utcnow()).strftime(_SQLITE_TS)),
+         (now or _utcnow()).strftime(_SQLITE_TS)),
     )
 
 
@@ -78,7 +83,7 @@ def check_escalations(conn: sqlite3.Connection, now: datetime | None = None) -> 
     """Advance the ladder for every unresolved review item. Idempotent per
     stage; call on the orchestrator's cycle (and in tests with an explicit
     `now` to simulate elapsed time)."""
-    now = now or datetime.utcnow()
+    now = now or _utcnow()
     items = conn.execute(
         "SELECT item_id, project_id, tier, item_type, created_at FROM review_queue"
         " WHERE status IN ('pending', 'escalated')"

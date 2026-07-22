@@ -51,6 +51,24 @@ def raise_review_item(
     return item_id
 
 
+def annotate_item(conn: sqlite3.Connection, item_id: int, key: str, value: Any) -> None:
+    """Merge one key into a PENDING item's payload (e.g. the orchestrator
+    attaching a plain-language slip explanation). Payload enrichment only —
+    status is untouchable here; this module and escalation.py remain the only
+    status writers."""
+    row = conn.execute(
+        "SELECT payload, status FROM review_queue WHERE item_id = ?", (item_id,)
+    ).fetchone()
+    if row is None or row["status"] not in ("pending", "escalated"):
+        return
+    payload = json.loads(row["payload"])
+    payload[key] = value
+    conn.execute(
+        "UPDATE review_queue SET payload = ? WHERE item_id = ?",
+        (json.dumps(payload), item_id),
+    )
+
+
 def resolve_item(
     conn: sqlite3.Connection,
     item_id: int,
