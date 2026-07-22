@@ -62,6 +62,9 @@ def test_threshold_breach_raises_tier1_slip_impact(world):
     ).fetchone()
     assert (item["tier"], item["status"]) == (1, "pending")
     assert '"project_end_shift_days": 2' in item["payload"]
+    # PRD 8.6 step 5: phase milestones diffed too — phase 2's effective end
+    # (latest task end) moved Aug 27 -> Aug 31 = 2 working days
+    assert '"phase_end_shift_days": {"2": 2}' in item["payload"]
 
 
 def test_slip_past_timeline_also_raises_infeasible_plan(world):

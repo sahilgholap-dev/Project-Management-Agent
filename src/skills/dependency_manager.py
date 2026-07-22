@@ -71,6 +71,7 @@ def handle_slip(conn: sqlite3.Connection, task_id: int) -> dict:
         )
     }
     old_project_finish = _project_finish(conn, project_id)
+    old_phase_finishes = _phase_finishes(conn, project_id)
 
     # Re-run CPM restricted to the affected tasks, slipped finish pinned.
     new_dates = sched.schedule_project(
@@ -94,8 +95,21 @@ def handle_slip(conn: sqlite3.Connection, task_id: int) -> dict:
             calendar.count_working_days(old_project_finish, new_project_finish) - 1
         )
 
+    # PRD 8.6 step 5: diff against PHASE end dates too, not just the project's
+    # — a slip can blow a phase milestone even when later slack absorbs it at
+    # project level.
+    phase_end_shifts = {}
+    for phase_id, new_finish in _phase_finishes(conn, project_id).items():
+        old_finish = old_phase_finishes.get(phase_id)
+        if old_finish and new_finish > old_finish:
+            phase_end_shifts[phase_id] = (
+                calendar.count_working_days(old_finish, new_finish) - 1
+            )
+
     threshold = float(config_loader.resolve(conn, project_id, "slip_threshold_days"))
-    breach = end_shift_days > threshold
+    breach = end_shift_days > threshold or any(
+        shift > threshold for shift in phase_end_shifts.values()
+    )
     if breach:
         raise_review_item(
             conn, project_id, "slip_impact",
@@ -104,6 +118,7 @@ def handle_slip(conn: sqlite3.Connection, task_id: int) -> dict:
                 "slipped_task_title": task["title"],
                 "slip_days": slip_days,
                 "project_end_shift_days": end_shift_days,
+                "phase_end_shift_days": phase_end_shifts,
                 "threshold_days": threshold,
                 "downstream_diffs": diffs,
             },
@@ -134,6 +149,19 @@ def detect_and_handle_slips(conn: sqlite3.Connection, project_id: int) -> list[d
         (project_id,),
     ).fetchall()
     return [handle_slip(conn, r["task_id"]) for r in slipped]
+
+
+def _phase_finishes(conn: sqlite3.Connection, project_id: int) -> dict[int, date]:
+    """Latest planned task end per phase — the phase's effective milestone."""
+    return {
+        r["phase_id"]: date.fromisoformat(r["finish"])
+        for r in conn.execute(
+            "SELECT phase_id, MAX(planned_end) AS finish FROM tasks"
+            " WHERE project_id = ? AND status != 'cancelled'"
+            "   AND planned_end IS NOT NULL GROUP BY phase_id",
+            (project_id,),
+        )
+    }
 
 
 def _project_finish(conn: sqlite3.Connection, project_id: int) -> date | None:
