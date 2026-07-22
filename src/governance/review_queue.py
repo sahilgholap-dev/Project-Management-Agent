@@ -57,6 +57,7 @@ def resolve_item(
     resolved_by: int,
     decision: str,
     notes: str | None = None,
+    final_text: str | None = None,
 ) -> dict:
     """Human resolution — the single approve/reject path (PRD section 10).
 
@@ -64,6 +65,12 @@ def resolve_item(
     or 'rejected'. Resolvable from pending, escalated, or paused (a paused
     project's reviewer finally responding is exactly this call). Resolution of
     a Tier 3 item propagates to its linked change request / sign-off packet.
+
+    final_text carries the reviewer's edited text for artifact-bearing items
+    (comms drafts, status reports, retrospectives); on approval the final text
+    (edit if provided, else the original draft) is versioned in
+    artifact_versions here, so an approved-but-unversioned artifact cannot
+    exist (PRD 8.8 step 7 / section 13).
     """
     if decision not in ("approved", "rejected"):
         raise ResolutionError(f"decision must be approved or rejected, not {decision!r}")
@@ -73,7 +80,8 @@ def resolve_item(
     if user is None or user["invite_status"] == "disabled":
         raise ResolutionError(f"resolver user {resolved_by} does not exist or is disabled")
     item = conn.execute(
-        "SELECT project_id, item_type, tier, status FROM review_queue WHERE item_id = ?",
+        "SELECT project_id, item_type, tier, status, payload FROM review_queue"
+        " WHERE item_id = ?",
         (item_id,),
     ).fetchone()
     if item is None:
@@ -86,6 +94,29 @@ def resolve_item(
         " resolved_at = datetime('now'), reviewer_notes = ? WHERE item_id = ?",
         (decision, resolved_by, notes, item_id),
     )
+
+    # Artifact-bearing items: version the final approved text (PRD section 13
+    # — every status report / comms message / retrospective is versioned).
+    _ARTIFACT_TYPES = {
+        "comms_draft": "comms_message",
+        "status_report": "status_report",
+        "retrospective": "retrospective",
+    }
+    if decision == "approved" and item["item_type"] in _ARTIFACT_TYPES:
+        payload = json.loads(item["payload"])
+        content = final_text or payload.get("draft") or payload.get("content")
+        if content:
+            version = conn.execute(
+                "SELECT COALESCE(MAX(version_number), 0) + 1 AS v FROM artifact_versions"
+                " WHERE artifact_type = ? AND artifact_ref = ?",
+                (_ARTIFACT_TYPES[item["item_type"]], item_id),
+            ).fetchone()["v"]
+            conn.execute(
+                "INSERT INTO artifact_versions (project_id, artifact_type, artifact_ref,"
+                " version_number, content, created_by) VALUES (?, ?, ?, ?, ?, ?)",
+                (item["project_id"], _ARTIFACT_TYPES[item["item_type"]], item_id,
+                 version, content, resolved_by),
+            )
 
     # Tier 3 linkage: the review item IS the approval gate for the form row.
     if item["item_type"] == "change_request":
