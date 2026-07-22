@@ -288,6 +288,10 @@ CREATE TABLE status_reports (
     raw_text        TEXT NOT NULL,                           -- §8.4 step 2: the free-text reply
     parsed_status   TEXT CHECK (parsed_status IN ('todo','in_progress','blocked','done','cancelled')),  -- §8.4 step 3, NULL until parsed
     parsed_percent_complete REAL CHECK (parsed_percent_complete BETWEEN 0 AND 100),
+    parsed_hours_spent REAL,                     -- EVM Actual Cost input: hours the owner reports having spent.
+                                                 -- AC is derived only from reported numbers — never from a
+                                                 -- fabricated time-accrual assumption. No reports = AC 0 for
+                                                 -- that task (CV then errs quiet, not alarmist; documented).
     is_ambiguous    INTEGER NOT NULL DEFAULT 0,              -- §8.4 step 4: flagged rather than guessed
     received_at     TEXT NOT NULL DEFAULT (datetime('now')),
     processed_at    TEXT                                     -- NULL = not yet consumed by Status Tracking

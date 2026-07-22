@@ -147,6 +147,7 @@ CREATE TABLE status_reports (
     raw_text        TEXT NOT NULL,
     parsed_status   TEXT CHECK (parsed_status IN ('todo','in_progress','blocked','done','cancelled')),
     parsed_percent_complete REAL CHECK (parsed_percent_complete BETWEEN 0 AND 100),
+    parsed_hours_spent REAL,                     -- feeds EVM Actual Cost: reported hours, never fabricated accrual
     is_ambiguous    INTEGER NOT NULL DEFAULT 0,
     received_at     TEXT NOT NULL DEFAULT (datetime('now')),
     processed_at    TEXT
