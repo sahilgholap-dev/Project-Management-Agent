@@ -88,6 +88,9 @@ def test_create_client_once_only(admin):
 
 
 def test_create_user_returns_credentials_once_never_stores_plaintext(admin):
+    """The plaintext exists ONLY in the one HTTP response. Verified against
+    the entire database — every table and value via iterdump(), which covers
+    auth_credentials AND audit_log summaries — not just the hash column."""
     client, db_path = admin
     client.post("/admin/clients", json={"name": "Acme"})
     response = client.post("/admin/users", json={
@@ -97,14 +100,18 @@ def test_create_user_returns_credentials_once_never_stores_plaintext(admin):
     body = response.json()
     assert body["password"] and "manually" in body["handoff_note"]
 
-    # plaintext appears nowhere in the database
+    # the creation IS audited (section 13), with a human actor and no secret
     conn = db.connect(db_path)
-    stored = conn.execute(
-        "SELECT password_hash FROM auth_credentials WHERE user_id = ?",
-        (body["user_id"],),
-    ).fetchone()["password_hash"]
+    audit_row = conn.execute(
+        "SELECT actor, input_summary, output_summary FROM audit_log"
+        " WHERE skill = 'admin_portal' AND action = 'create_user'"
+    ).fetchone()
+    assert audit_row is not None and audit_row["actor"] != "agent"
+
+    # plaintext appears nowhere in the ENTIRE database dump
+    full_dump = "\n".join(conn.iterdump())
     conn.close()
-    assert body["password"] not in stored
+    assert body["password"] not in full_dump
 
     # and the new client_admin can log in with them
     assert _login(client, "sahil@acme.test", body["password"]).status_code == 200

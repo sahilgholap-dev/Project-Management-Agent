@@ -13,7 +13,15 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from api import admin_routes, auth_routes
+from api import (
+    admin_routes,
+    auth_routes,
+    config_routes,
+    project_routes,
+    register_routes,
+    review_routes,
+    team_routes,
+)
 from src import db
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "nexus.db"
@@ -30,6 +38,11 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH) -> FastAPI:
     app.state.db_path = str(db_path)
     app.include_router(auth_routes.router)
     app.include_router(admin_routes.router)
+    app.include_router(config_routes.router)
+    app.include_router(team_routes.router)
+    app.include_router(project_routes.router)
+    app.include_router(review_routes.router)
+    app.include_router(register_routes.router)
     return app
 
 

@@ -15,7 +15,12 @@ _SECRET_FILE = Path(__file__).resolve().parent.parent / ".session_secret"
 
 def _load_or_create_secret() -> bytes:
     """Server-side signing secret, generated once and kept out of git
-    (.session_secret is gitignored)."""
+    (.session_secret is gitignored).
+
+    KNOWN LIMITATION (accepted for the single-tester tool, noted in
+    FRONTEND_IMPLEMENTATION_PLAN.md F5 follow-ons): there is no rotation
+    path — regenerating or losing this file invalidates every active
+    session (users just log in again; no data is affected)."""
     if _SECRET_FILE.exists():
         return bytes.fromhex(_SECRET_FILE.read_text(encoding="utf-8").strip())
     secret = secrets.token_bytes(32)

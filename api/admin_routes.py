@@ -9,11 +9,12 @@ all that is stored; the plaintext is never queryable again.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from api import security
-from api.deps import PLATFORM_CLIENT_NAME, Conn, require_role
+from api.deps import PLATFORM_CLIENT_NAME, Conn, current_user, require_role
+from src.lib import audit
 
 router = APIRouter(prefix="/admin", tags=["admin"],
                    dependencies=[require_role("platform_admin")])
@@ -30,7 +31,9 @@ class UserBody(BaseModel):
 
 
 @router.post("/clients", status_code=201)
-def create_client(body: ClientBody, conn: Conn) -> dict:
+def create_client(
+    body: ClientBody, conn: Conn, admin=Depends(current_user)
+) -> dict:
     existing = conn.execute(
         "SELECT client_id FROM clients WHERE name != ?", (PLATFORM_CLIENT_NAME,)
     ).fetchone()
@@ -40,12 +43,18 @@ def create_client(body: ClientBody, conn: Conn) -> dict:
             detail="a client already exists — v1 is single-client (PRD section 1)",
         )
     cur = conn.execute("INSERT INTO clients (name) VALUES (?)", (body.name,))
+    audit.log_action(
+        conn, skill="admin_portal", action="create_client",
+        input_summary={"name": body.name},
+        output_summary={"client_id": cur.lastrowid},
+        actor=str(admin["user_id"]),
+    )
     conn.commit()
     return {"client_id": cur.lastrowid, "name": body.name}
 
 
 @router.post("/users", status_code=201)
-def create_user(body: UserBody, conn: Conn) -> dict:
+def create_user(body: UserBody, conn: Conn, admin=Depends(current_user)) -> dict:
     if body.role not in ("client_admin", "member"):
         raise HTTPException(status_code=422, detail="role must be client_admin or member")
     client = conn.execute(
@@ -67,6 +76,14 @@ def create_user(body: UserBody, conn: Conn) -> dict:
     conn.execute(
         "INSERT INTO auth_credentials (user_id, password_hash) VALUES (?, ?)",
         (cur.lastrowid, security.hash_password(password)),
+    )
+    # audited WITHOUT the password: summaries must never carry the plaintext
+    # (the full-dump test asserts it appears nowhere in the database)
+    audit.log_action(
+        conn, skill="admin_portal", action="create_user",
+        input_summary={"email": body.email, "role": body.role},
+        output_summary={"user_id": cur.lastrowid},
+        actor=str(admin["user_id"]),
     )
     conn.commit()
     # shown once on screen for manual handoff — never stored, never sent

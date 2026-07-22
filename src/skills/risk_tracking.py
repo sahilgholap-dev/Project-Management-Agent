@@ -171,6 +171,40 @@ def _is_duplicate(
     return bool(verdict["is_duplicate"])
 
 
+def adjust_score(
+    conn: sqlite3.Connection, risk_id: int, severity: int, likelihood: int,
+    by_user: int,
+) -> dict:
+    """Reviewer adjustment of a risk's scores (PRD 8.5 step 4: 'always
+    reviewer-adjustable'). Approved OQ-6: a real human actor is recorded in
+    audit_log; this is an action taken while reviewing an existing Tier 1
+    item, NOT a new tiered decision — no review item is raised."""
+    if not (1 <= int(severity) <= 5 and 1 <= int(likelihood) <= 5):
+        raise ValueError("severity and likelihood must be integers 1-5")
+    row = conn.execute(
+        "SELECT project_id, severity, likelihood FROM risks_issues WHERE risk_id = ?",
+        (risk_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError(f"risk {risk_id} does not exist")
+    conn.execute(
+        "UPDATE risks_issues SET severity = ?, likelihood = ?,"
+        " updated_at = datetime('now') WHERE risk_id = ?",
+        (int(severity), int(likelihood), risk_id),
+    )
+    audit.log_action(
+        conn, skill="risk_tracking", action="adjust_score",
+        input_summary={"risk_id": risk_id,
+                       "from": [row["severity"], row["likelihood"]],
+                       "to": [int(severity), int(likelihood)]},
+        actor=str(by_user),
+        project_id=row["project_id"],
+    )
+    conn.commit()
+    return {"risk_id": risk_id, "severity": int(severity),
+            "likelihood": int(likelihood), "score": int(severity) * int(likelihood)}
+
+
 def run_cycle(
     conn: sqlite3.Connection,
     project_id: int,

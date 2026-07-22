@@ -242,6 +242,10 @@ Sequenced so the review queue and dashboard are usable as early as possible
   log views, admin portal, critical-path Gantt-ish rendering upgrade (a
   positioned-div timeline; no charting library unless it stays trivial).
 
+  F5 follow-ons (noted, not blocking): the session signing secret
+  (`.session_secret`) has no rotation path — regenerating it logs everyone
+  out; fine for a single-tester tool, revisit before any wider use.
+
 ---
 
 ## 4. Data Fetching / State
