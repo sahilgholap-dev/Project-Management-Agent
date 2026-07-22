@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-pm-agent/client_config",
+  "title": "NEXUS client_config",
+  "description": "Client-level defaults (PRD section 5). Any project may override any property here via projects.config_overrides; resolution is project override first, client default otherwise. Validated on every save (PRD section 13).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reporting_cadence",
+    "skill_depth",
+    "primary_reviewer_id",
+    "escalation_delay_hours",
+    "change_approver_id",
+    "signoff_approver_id",
+    "working_calendar",
+    "assignment_strategy",
+    "slip_threshold_days"
+  ],
+  "properties": {
+    "about_client": { "type": ["string", "null"] },
+    "project_definition": {
+      "type": ["string", "null"],
+      "description": "Free text: what counts as a distinct project for this client. Read by Task Breakdown to calibrate phase-decomposition granularity."
+    },
+    "reporting_cadence": { "enum": ["daily", "weekly", "biweekly"] },
+    "comms_cadence": { "enum": ["daily", "weekly", "biweekly", null] },
+    "skill_depth": {
+      "type": "object",
+      "description": "Depth setting per skill. stakeholder_comms structurally cannot be autonomous (PRD section 8.8: the one skill that never gets a fully-automatic depth).",
+      "additionalProperties": false,
+      "required": [
+        "task_breakdown",
+        "scheduler",
+        "assignment_engine",
+        "status_tracking",
+        "risk_tracking",
+        "dependency_manager",
+        "meeting_summary",
+        "stakeholder_comms"
+      ],
+      "properties": {
+        "task_breakdown": { "enum": ["manual", "assisted", "autonomous"] },
+        "scheduler": { "enum": ["manual", "assisted", "autonomous"] },
+        "assignment_engine": { "enum": ["manual", "assisted", "autonomous"] },
+        "status_tracking": { "enum": ["manual", "assisted", "autonomous"] },
+        "risk_tracking": { "enum": ["manual", "assisted", "autonomous"] },
+        "dependency_manager": { "enum": ["manual", "assisted", "autonomous"] },
+        "meeting_summary": { "enum": ["manual", "assisted", "autonomous"] },
+        "stakeholder_comms": { "enum": ["manual", "assisted"] }
+      }
+    },
+    "tools_channels": {
+      "type": ["object", "null"],
+      "description": "Informational in v1 - no external integrations are wired."
+    },
+    "primary_reviewer_id": { "type": "integer" },
+    "backup_reviewer_id": { "type": ["integer", "null"] },
+    "escalation_delay_hours": { "type": "number", "exclusiveMinimum": 0 },
+    "escalation_delay_by_tier": {
+      "type": ["object", "null"],
+      "description": "Optional per-tier override of escalation_delay_hours, keyed by tier.",
+      "additionalProperties": false,
+      "properties": {
+        "1": { "type": "number", "exclusiveMinimum": 0 },
+        "2": { "type": "number", "exclusiveMinimum": 0 },
+        "3": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "change_approver_id": { "type": "integer" },
+    "signoff_approver_id": { "type": "integer" },
+    "voice_style": { "type": ["string", "null"] },
+    "working_calendar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workdays", "hours_per_day"],
+      "properties": {
+        "workdays": {
+          "type": "array",
+          "description": "ISO weekday numbers, 1=Monday .. 7=Sunday",
+          "items": { "type": "integer", "minimum": 1, "maximum": 7 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "holidays": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "default": []
+        },
+        "hours_per_day": { "type": "number", "exclusiveMinimum": 0, "maximum": 24 }
+      }
+    },
+    "assignment_strategy": { "enum": ["best_skill_match", "balanced_workload"] },
+    "slip_threshold_days": { "type": "number", "exclusiveMinimum": 0 }
+  }
+}

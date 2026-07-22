@@ -1,0 +1,31 @@
+{
+  "about_client": "Example client: mid-size product company running concurrent delivery projects.",
+  "project_definition": "Each project is a discrete engagement with its own budget and timeline.",
+  "reporting_cadence": "weekly",
+  "comms_cadence": "biweekly",
+  "skill_depth": {
+    "task_breakdown": "assisted",
+    "scheduler": "autonomous",
+    "assignment_engine": "autonomous",
+    "status_tracking": "assisted",
+    "risk_tracking": "assisted",
+    "dependency_manager": "autonomous",
+    "meeting_summary": "assisted",
+    "stakeholder_comms": "assisted"
+  },
+  "tools_channels": { "notes": "informational only in v1 - no integrations wired" },
+  "primary_reviewer_id": 1,
+  "backup_reviewer_id": 2,
+  "escalation_delay_hours": 24,
+  "escalation_delay_by_tier": { "1": 8, "2": 24, "3": 48 },
+  "change_approver_id": 1,
+  "signoff_approver_id": 1,
+  "voice_style": "Concise, factual, no hype. Lead with health status.",
+  "working_calendar": {
+    "workdays": [1, 2, 3, 4, 5],
+    "holidays": ["2026-08-15", "2026-10-02"],
+    "hours_per_day": 8
+  },
+  "assignment_strategy": "best_skill_match",
+  "slip_threshold_days": 2
+}

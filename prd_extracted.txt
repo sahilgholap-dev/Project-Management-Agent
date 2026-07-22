@@ -1,0 +1,346 @@
+NEXUS PM Agent
+Product Requirements Document — v5
+Scope: one client running multiple concurrent projects. Timeline tracked separately.
+1. Overview & Scope
+NEXUS PM Agent automates the operational work of project management — planning, tracking, risk management, governance, and stakeholder communication — for a single client running one or more concurrent projects.
+Correction from v2:  v2 implied a multi-tenant SaaS product serving many separate client organizations, with a full control-plane and schema-per-tenant isolation layer built up front. Scope was corrected to what is actually being built first: one client, multiple projects, sharing one schema. Multi-tenant support is documented as a deferred future option (Section 14), not built now.
+2. Tech Stack
+<w:tblPr><w:tblW w:type="dxa" w:w="10080"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="2822"/><w:gridCol w:w="7258"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2822"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Layer
+<w:tcPr><w:tcW w:type="dxa" w:w="7258"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Choice
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2822"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Build tool
+<w:tcPr><w:tcW w:type="dxa" w:w="7258"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Claude Code + Claude Fable 5 (model id: claude-fable-5)
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2822"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Runtime model
+<w:tcPr><w:tcW w:type="dxa" w:w="7258"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Claude Sonnet 5 (model id: claude-sonnet-5)
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2822"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Orchestration
+<w:tcPr><w:tcW w:type="dxa" w:w="7258"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">LangGraph — skills as nodes, project_state as shared state, conditional edges for tier routing and thresholds
+Correction from v2:  v2's Provider Router entry listed “Emergent primary, Anthropic fallback,” inherited verbatim from the parent NEXUS doctrine document. This build runs on Claude models only.
+Correction from v2:  CrewAI was evaluated and explicitly rejected. This system has no agents that negotiate, delegate, or hold independent goals — it is a fixed pipeline of skills reading and writing shared project state. That is LangGraph's model, not CrewAI's.
+Correction from v4:  Fable 5 and Sonnet 5 serve different roles and should not be conflated. Fable 5 is the build-time tool — used through Claude Code for the long-horizon, autonomous work of writing this system. Sonnet 5 is the runtime model — every LLM call the deployed agent makes (task breakdown, meeting summaries, comms drafting, risk pattern scanning) is a bounded, single-call task, not a long-horizon one, and Sonnet 5 delivers near-Opus quality on that kind of work at roughly a third to a fifth of Fable 5's per-token cost. At real usage volume, running every routine skill call on Fable 5 pricing would be paying for autonomy the runtime doesn't need.
+3. Doctrine: Config, Not Code
+One codebase serves every project. All project-specific behavior lives in configuration, not in project-specific code branches. If serving a new project ever requires a code change rather than a config change, that is a defect in the doctrine, not a valid one-off exception.
+4. Organizational Hierarchy & Onboarding
+Four steps, strictly in order — each one depends on the one before it existing:
+<w:tblPr><w:tblW w:type="dxa" w:w="10080"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="806"/><w:gridCol w:w="2621"/><w:gridCol w:w="6653"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="806"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Step
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Actor
+<w:tcPr><w:tcW w:type="dxa" w:w="6653"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">What happens
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="806"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">1
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Our company
+<w:tcPr><w:tcW w:type="dxa" w:w="6653"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Creates the client company, creates its admin user, shares login credentials.
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="806"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">2
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Client admin
+<w:tcPr><w:tcW w:type="dxa" w:w="6653"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Logs in, creates team members with roles and skills (team_members).
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="806"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">3
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Client admin
+<w:tcPr><w:tcW w:type="dxa" w:w="6653"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Creates one or more projects; uploads requirements, budget, and timeline per project.
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="806"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">4
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Agent
+<w:tcPr><w:tcW w:type="dxa" w:w="6653"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Ingests each project's documents and begins planning (Section 6).
+Correction from v3:  Step 2 (create teams) was previously folded into a generic “configure company” step and not called out on its own. It has to happen before Step 3 produces any task assignments, since the assignment engine has nothing to assign to otherwise — it is now an explicit, ordered step.
+Admin flow
+Admin login → admin dashboard → create company → create user for that company → send invite → setup complete.
+User flow
+User receives invite → user login → configure company (writes client_config) → create teams → set reviewer & escalation rules → save configuration → agent goes live.
+Project intake
+Submitted per project, not once per client. Each new project triggers ingestion independently and lands as a new row in projects, sharing the client's config defaults unless a project-specific override is set.
+5. Client & Project Configuration
+client_config — client-level defaults
+About the client, project definition, cadence, skill depth per skill, tools/channels, primary reviewer, backup reviewer, escalation delay, change approver, sign-off approver, voice/style, working calendar, assignment strategy, and slip-flag threshold.
+projects.config_overrides — per-project overrides
+Any project may override any client-level default — for example, a different reviewer or a tighter escalation delay on one high-visibility project. Resolution order at read time: project override first, client default otherwise.
+Correction from v2:  Three fields were added following the v2 review that were previously missing from client_config: working_calendar, assignment_strategy, and slip_threshold_days.
+Correction from v2:  Escalation delay was a single value applied identically to all tiers in v2. An optional escalation_delay_by_tier override was added, since a minor internal flag and a client-facing artifact do not warrant the same wait before escalating.
+6. Project Structure: Phases & Tasks
+Task breakdown runs in two passes, not one. First, the agent breaks the project's scope into phases — each with its own description, timeline, and status. Only then does it generate the detailed tasks within each phase, along with that phase's documentation.
+<w:tblPr><w:tblW w:type="dxa" w:w="10080"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="3024"/><w:gridCol w:w="7056"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Level
+<w:tcPr><w:tcW w:type="dxa" w:w="7056"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">What it holds
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Project
+<w:tcPr><w:tcW w:type="dxa" w:w="7056"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Overall scope, budget, timeline, status
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Phase
+<w:tcPr><w:tcW w:type="dxa" w:w="7056"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">A stage of the project — own description, planned start/end, status, sequence order
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Task
+<w:tcPr><w:tcW w:type="dxa" w:w="7056"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Belongs to exactly one phase — effort estimate, skill tags, owner, dependencies
+Correction from v3:  Phases were previously just a text tag (parent_feature) on individual tasks. They are now a first-class table (phases) between projects and tasks, since a phase needs its own dates and status, not just a label — the task-breakdown skill generates phases first, then tasks per phase.
+7. Agent Skill Library
+Every skill is classified by how it actually computes its output — this determines what can be trusted to behave identically every time versus what needs a human checking it.
+<w:tblPr><w:tblW w:type="dxa" w:w="10080"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="1714"/><w:gridCol w:w="1411"/><w:gridCol w:w="2016"/><w:gridCol w:w="2621"/><w:gridCol w:w="2318"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1714"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Skill
+<w:tcPr><w:tcW w:type="dxa" w:w="1411"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Type
+<w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Input
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Process
+<w:tcPr><w:tcW w:type="dxa" w:w="2318"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Output
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1714"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Task breakdown
+<w:tcPr><w:tcW w:type="dxa" w:w="1411"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">LLM reasoning
+<w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Scope document
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Sonnet 5: project → phases → tasks
+<w:tcPr><w:tcW w:type="dxa" w:w="2318"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Phases + structured task list
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1714"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Scheduler
+<w:tcPr><w:tcW w:type="dxa" w:w="1411"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Deterministic
+<w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Tasks + dependencies
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Critical Path Method (no LLM)
+<w:tcPr><w:tcW w:type="dxa" w:w="2318"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Dates + critical path
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1714"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Assignment engine
+<w:tcPr><w:tcW w:type="dxa" w:w="1411"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Deterministic
+<w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Tasks + roster (all projects)
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Greedy skills/capacity match (no LLM)
+<w:tcPr><w:tcW w:type="dxa" w:w="2318"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Task → owner map
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1714"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Status tracking
+<w:tcPr><w:tcW w:type="dxa" w:w="1411"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Hybrid
+<w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Self-reports
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">EVM math + Sonnet 5 parses free text
+<w:tcPr><w:tcW w:type="dxa" w:w="2318"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Variance %
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1714"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Risk & issue tracking
+<w:tcPr><w:tcW w:type="dxa" w:w="1411"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Hybrid
+<w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Rules + meeting notes
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Rule triggers + Sonnet 5 pattern scan
+<w:tcPr><w:tcW w:type="dxa" w:w="2318"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Scored risk register
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1714"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Dependency manager
+<w:tcPr><w:tcW w:type="dxa" w:w="1411"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Deterministic
+<w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Detected task slip
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Graph re-walk (no LLM)
+<w:tcPr><w:tcW w:type="dxa" w:w="2318"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Impact list + revised dates
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1714"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Meeting summary
+<w:tcPr><w:tcW w:type="dxa" w:w="1411"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">LLM reasoning
+<w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Transcript/notes
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Sonnet 5 extracts three buckets
+<w:tcPr><w:tcW w:type="dxa" w:w="2318"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Decisions, action items, blockers
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1714"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Stakeholder comms
+<w:tcPr><w:tcW w:type="dxa" w:w="1411"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">LLM reasoning
+<w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Status + risk data
+<w:tcPr><w:tcW w:type="dxa" w:w="2621"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Sonnet 5 drafts, audience-specific
+<w:tcPr><w:tcW w:type="dxa" w:w="2318"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Draft only — human sends
+Correction from v2:  v2 listed these as a flat set of skills without distinguishing plain code from genuine model reasoning. This classification directly determines the correctness-testing approach in Section 15.
+Correction from v4:  Every LLM-driven skill in this table runs on Claude Sonnet 5 at runtime, not Fable 5. Fable 5's role is limited to Claude Code sessions while building the system (Section 2).
+8. Agent Skill Flows (Detailed)
+Full trigger-to-output sequence for each of the eight skills in Section 7. Previously a separate companion document; merged in here as of v5 so the skill library and its exact behavior stay in one place.
+8.1  Task Breakdown
+  LLM reasoning — Claude Sonnet 5  
+Trigger:  New project intake, or an admin-requested re-breakdown
+Reads:  projects.scope_summary, budget_total, timeline_start/end
+Writes:  phases, tasks, task_dependencies
+Runs in two passes — project → phases first, then each phase → its own detailed tasks. Never generates tasks directly from the raw scope document.
+1.  Load the project's scope summary, budget, and timeline from projects.
+2.  Send the scope document to Sonnet 5 with an instruction to decompose it into phases only — name, description, and a rough date range per phase.
+3.  Sonnet 5 returns a structured phase list. Anything ambiguous in the scope is flagged as needs_clarification rather than guessed.
+4.  Validate the phase output against the schema. A missing required field halts here and surfaces to the reviewer — it does not get silently patched.
+5.  Write validated phases into the phases table, in sequence order.
+6.  For each phase in turn, send that phase's scope back to Sonnet 5 with an instruction to decompose it into detailed tasks: title, effort estimate, required skill tags, and any dependency mentioned in prose.
+7.  Validate the task output. Sum effort estimates for the phase and check that total against the phase's date range and the client's working_calendar — flag to the reviewer if the plan is already over capacity before a single task starts.
+8.  Write validated tasks into tasks, each linked to its phase_id.
+9.  Record any dependency mentioned between tasks as a row in task_dependencies.
+10.  Hand off to the Scheduler (8.2) to compute actual dates from this task list.
+11.  Log the full ingestion-and-breakdown action to audit_log, with the scope document as input and the phase/task list as output.
+8.2  Scheduler
+  Deterministic — plain code, no LLM  
+Trigger:  After Task Breakdown completes, or whenever the Dependency Manager detects a slip
+Reads:  tasks, task_dependencies, client_config.working_calendar
+Writes:  tasks.planned_start / planned_end
+Critical Path Method. The same algorithm runs regardless of project or client — only the data changes (Section 2, config vs. code).
+1.  Load every task and dependency edge for the project (or the affected phase, if re-running after a slip).
+2.  Build a directed graph: tasks as nodes, dependencies as edges.
+3.  Topologically sort the graph.
+4.  Forward pass: compute the earliest possible start and finish for every task, skipping weekends/holidays per the client's working_calendar.
+5.  Backward pass: compute the latest allowable start and finish for every task, working backward from the phase or project end date.
+6.  Compute slack per task (latest start minus earliest start).
+7.  Identify the critical path — every task with zero slack.
+8.  Write the computed planned_start / planned_end back to each task.
+9.  If total computed duration exceeds the stated project timeline, raise a Tier 1 review item rather than silently accepting an infeasible plan.
+10.  Log the run to audit_log.
+8.3  Assignment Engine
+  Deterministic — plain code, no LLM  
+Trigger:  After the Scheduler produces dates, or whenever a new task appears mid-project
+Reads:  tasks, team_members, task assignments across every active project
+Writes:  tasks.owner_id, team_members.allocated_hrs
+Greedy skills-and-capacity match. The capacity check is cross-project by design (Section 9) — this is the step most likely to silently double-book someone if built carelessly.
+1.  Sort tasks needing assignment, critical-path tasks first.
+2.  For each task, filter team_members to those whose skill_tags overlap the task's required skills and who are marked active.
+3.  For each candidate, compute their true current allocated_hrs by summing committed hours across every active project they're on — not just this one.
+4.  Score remaining candidates using the client's configured assignment_strategy (best skill match, or balanced workload).
+5.  Assign the top-scored candidate. If nobody has remaining capacity, do not over-allocate — flag the task as unassignable and raise a Tier 1 review item instead.
+6.  Write owner_id on the task and update that person's allocated_hrs.
+7.  Log the run to audit_log.
+8.4  Status Tracking
+  Hybrid — EVM math + Sonnet 5  
+Trigger:  Client's configured reporting cadence, or an ad hoc self-report
+Reads:  Free-text status replies from task owners
+Writes:  tasks.status, risks_issues (on threshold breach)
+The math is deterministic once a status exists; Sonnet 5's only job is turning a person's free-text reply into that status in the first place.
+1.  On the configured cadence, message each task owner asking for a status update on their open tasks.
+2.  Receive the free-text reply.
+3.  Sonnet 5 parses the reply into a structured status (and percent-complete estimate, if mentioned).
+4.  Validate the parsed status against the allowed set of values — flag as ambiguous rather than guessing if the reply doesn't clearly map to one.
+5.  Update the task's status and actual_start / actual_end as appropriate.
+6.  Deterministic step: recompute Planned Value, Earned Value, and Actual Cost; derive Schedule Variance (EV − PV) and Cost Variance (EV − AC).
+7.  Compare both variances against the client's configured slip_threshold_days.
+8.  If a threshold is breached, raise a Tier 1 off-track alert and create or update the corresponding risks_issues entry.
+9.  Log the cycle to audit_log.
+8.5  Risk & Issue Tracking
+  Hybrid — rule triggers + Sonnet 5  
+Trigger:  Continuous — runs after every status-tracking cycle and every meeting summary
+Reads:  Variance data, meeting notes, existing open risks
+Writes:  risks_issues
+Two independent detection paths feed the same register, with a duplicate check before anything new is added.
+1.  Rule-based pass: check deterministic thresholds — schedule variance, cost variance, capacity over-allocation flagged by the Assignment Engine. Any breach auto-creates a risk candidate, no LLM involved.
+2.  LLM pass: send recent meeting notes and status free-text to Sonnet 5, asking it to flag anything that reads like an emerging risk the rules above wouldn't catch.
+3.  Before inserting either kind of candidate, check it against every existing open risk on the project and ask Sonnet 5 whether it's a duplicate. Skip the insert if so.
+4.  Score the new risk (severity × likelihood, 1–5 each) — rule-assigned where possible, Sonnet-suggested otherwise, always reviewer-adjustable.
+5.  Insert into risks_issues, tagged with its source (rule_based or pattern_detected).
+6.  Raise a Tier 1 review item for reviewer awareness.
+7.  Log the cycle to audit_log.
+8.6  Dependency Manager
+  Deterministic — plain code, no LLM  
+Trigger:  A task's actual_end is recorded later than its planned_end
+Reads:  task_dependencies, tasks
+Writes:  tasks.planned_start / planned_end (downstream tasks only)
+Graph traversal, reusing the same dependency graph the Scheduler builds. Sonnet 5's only role is explaining the result in plain language — it never decides the dates.
+1.  Detect the slip: an actual completion date later than the planned one.
+2.  Compute the slip's magnitude in days.
+3.  Walk the dependency graph forward from the slipped task to find every downstream task it affects.
+4.  Re-run the Scheduler's forward and backward pass, restricted to the affected tasks.
+5.  Diff the new dates against the old ones for every downstream task, and against any phase or project end date.
+6.  If a milestone or end date moved by more than the client's slip_threshold_days, raise a Tier 1 review item. Sonnet 5 turns the raw diff into a plain-language summary (e.g. “this pushes the client demo milestone by 2 days”).
+7.  Update planned dates on every affected task.
+8.  Log the run to audit_log.
+8.7  Meeting Summary
+  LLM reasoning — Claude Sonnet 5  
+Trigger:  A transcript or set of notes is uploaded by an admin or team member
+Reads:  Raw transcript / notes text
+Writes:  meetings, meeting_action_items, blockers, and (indirectly) tasks
+Runs before Task Breakdown and Risk Tracking in each cycle — its output becomes their input, not the other way around.
+1.  Receive the raw transcript or notes.
+2.  Send it to Sonnet 5 with an instruction to extract exactly three buckets: decisions (with who decided), action items (with owner and due date if stated), and blockers (who's blocked, on what).
+3.  Validate the output against that three-bucket structure.
+4.  Write the meeting record into meetings, with decisions stored as structured data.
+5.  For each action item, create a row in meeting_action_items. If it implies new work, hand it to Task Breakdown to generate a linked task, and record that link (converted_task_id).
+6.  For each blocker, create or update a row in blockers with a description and, where statable, who's responsible for resolving it (assigned_to). If ownership isn't clear from the notes, leave it unassigned and flag it to the reviewer rather than guessing.
+7.  Log the extraction to audit_log.
+8.8  Stakeholder Comms
+  LLM reasoning — Claude Sonnet 5  
+Trigger:  Client's configured communication cadence, or an ad hoc reviewer request
+Reads:  Status variance, open risks, recent milestone changes, stakeholders.audience_type
+Writes:  review_queue (Tier 2 draft) — never sends directly
+Draft-only by design. No matter how good the draft looks, a human reviews and sends it — this is the one skill that never gets a fully-automatic depth setting.
+1.  Pull the latest status variance, open risks, and any recent milestone changes for the project.
+2.  Determine the target audience type from stakeholders (team, exec, client, or investor).
+3.  Send this data plus the client's configured voice_style to Sonnet 5, with instructions to draft a message suited to that audience — a two-line health check for an executive, feature-progress framing for a client, full technical detail internally.
+4.  Write the draft into review_queue as a Tier 2 item, tagged as a comms artifact.
+5.  The reviewer reviews and edits as needed, then approves.
+6.  Only after explicit approval does a human send it — the agent itself never dispatches outbound communication.
+7.  Log the draft-and-approval cycle to audit_log; version the final approved text in artifact_versions.
+9. Resource Management Across Projects
+Team members are shared across every project a client runs — the same roster, not a separate one per project. This makes cross-project capacity the single most important thing the assignment engine has to get right.
+A person's allocated hours are tracked as one running total across every active project, not reset per project. Before assigning any task, on any project, the assignment engine checks that person's true remaining capacity given everything else they are already committed to — not just the current project's task list.
+Correction from v3:  Without this, the assignment engine could independently assign a person to full capacity on Project A, then separately assign them to full capacity on Project B, because each run only saw its own project's tasks. This was previously documented only as an edge case (Section 16); it is now a first-order design requirement, since it is the most likely way this system silently produces an unworkable plan.
+•  Blockers now distinguish who raised an issue from who is responsible for resolving it (blockers.assigned_to), since these are often different people.
+10. Reviewer & Governance Model
+Four tiers, fixed to the skill that produced the item, not adjustable by a client to weaken oversight:
+<w:tblPr><w:tblW w:type="dxa" w:w="10080"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="1210"/><w:gridCol w:w="3024"/><w:gridCol w:w="5846"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1210"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Tier
+<w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Behavior
+<w:tcPr><w:tcW w:type="dxa" w:w="5846"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Example
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1210"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">0
+<w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Fully automatic, no review
+<w:tcPr><w:tcW w:type="dxa" w:w="5846"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Internal documentation & archiving
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1210"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">1
+<w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Single-tap approve/reject
+<w:tcPr><w:tcW w:type="dxa" w:w="5846"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">New risk flagged, off-track alert
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1210"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">2
+<w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Full review before it goes out
+<w:tcPr><w:tcW w:type="dxa" w:w="5846"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Status report, stakeholder draft
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="1210"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">3
+<w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Formal packet, explicit sign-off
+<w:tcPr><w:tcW w:type="dxa" w:w="5846"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Change request, deliverable sign-off
+Silence escalation
+Notify the primary reviewer. If no response within the escalation delay, notify the backup reviewer. If the backup is also silent, pause all work on that project and show a visible banner — the system never auto-approves a Tier 1, 2, or 3 item under any configuration.
+Correction from v2:  Reviewer fatigue is a real product risk that the escalation mechanism manages, not eliminates. It is flagged as something to test directly with the live pilot, not treated as fully solved by the escalation design alone.
+11. Agent Operating Cycle
+Project docs submitted (per project) → agent breaks scope into phases, then tasks within each phase → agent schedules and assigns (checking capacity across every active project) → agent runs & monitors (tracking, risk, dependency management, blockers with a clear owner) → reviewer checks in (tap approval, tagged by project) → agent produces outputs (reports, comms, sign-off packets). The middle steps repeat continuously until the project closes, at which point a retrospective is generated and the project is archived.
+12. Data Model
+Full schema detail lives in the companion schema document. Summary by category:
+<w:tblPr><w:tblW w:type="dxa" w:w="10080"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="3024"/><w:gridCol w:w="7056"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Category
+<w:tcPr><w:tcW w:type="dxa" w:w="7056"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Tables
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Configuration
+<w:tcPr><w:tcW w:type="dxa" w:w="7056"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">client_config · projects (incl. config_overrides)
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Core PM data
+<w:tcPr><w:tcW w:type="dxa" w:w="7056"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">phases · tasks · task_dependencies · team_members · risks_issues · blockers (incl. assigned_to) · meetings · meeting_action_items · change_requests · signoff_packets · stakeholders
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="3024"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Governance & audit
+<w:tcPr><w:tcW w:type="dxa" w:w="7056"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">review_queue · escalation_log · artifact_versions · audit_log
+Correction from v2:  v2's data model listed eight core PM tables with no tables for the tiered review queue, escalation logging, artifact versioning, or action audit logging. review_queue, escalation_log, artifact_versions, and audit_log were added; task_dependencies was normalized into a real graph.
+Correction from v3:  phases was added as its own table (Section 6), and blockers gained an assigned_to field distinct from raised_by (Section 9).
+13. Quality Bar
+•  No fabrication — every output cites its basis or explicitly flags low confidence rather than guessing.
+•  Every status report, risk register, and sign-off packet is versioned (artifact_versions).
+•  Every agent action is audit-logged with timestamp, input, and output (audit_log).
+•  Every escalation is logged with timestamp, reason, and outcome (escalation_log).
+•  Config edits are validated on every save, not only at initial onboarding.
+14. Out of Scope for V1
+•  Multi-tenant / multi-client support — deferred; the schema supports adding it later without a redesign.
+•  External tools (e.g. Jira) as the system of record — v1 uses its own mini-database.
+•  Any form of automated final sign-off or change approval without a human tap, regardless of skill-depth configuration.
+15. Acceptance Criteria
+•  Deterministic skills (scheduler, assignment engine, dependency manager) produce correct output against a hand-verified test dataset with a known answer.
+•  LLM reasoning skills are evaluated against a held-out sample project not used during development.
+•  Task breakdown produces phases with valid dates before generating any tasks under them.
+•  A team member's combined allocation across every active project never silently exceeds their capacity.
+•  No Tier 2 or Tier 3 item is ever auto-approved under any configuration.
+•  A silent reviewer triggers backup notification within the configured delay, and a silent backup triggers a paused-work state, verified in a live test.
+•  Config edits are validated on every save; a missing required field is surfaced as a defect, not silently accepted.
+•  A second, independent project runs correctly on the same shared codebase with zero project-specific code.
+16. Edge Cases
+•  A reviewer edits client_requirements.md directly and leaves a required field blank — flagged as a config defect, not silently accepted.
+•  A project's config_overrides conflicts with the client default in a way that would break a downstream skill (e.g. no reviewer set at either level) — that skill refuses to run for that project until resolved.
+•  Backup reviewer is also unset — escalation goes straight to the paused-work state rather than erroring or silently proceeding.
+•  A blocker is raised by one person but has no clear owner assigned — surfaced to the reviewer rather than left unassigned indefinitely.
+17. Corrections Log
+v2 → v3
+<w:tblPr><w:tblW w:type="dxa" w:w="10080"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="2016"/><w:gridCol w:w="3830"/><w:gridCol w:w="4234"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Area
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">v2
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">v3 correction
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Scope
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Implied multi-client SaaS
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Single client, multiple projects; multi-tenant explicitly deferred
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Provider Router
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">“Emergent primary, Anthropic fallback”
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Claude Fable 5 only
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Orchestration
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Unspecified
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">LangGraph; CrewAI evaluated and rejected
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Escalation delay
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">One delay applied to all tiers
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Optional per-tier override
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Data model
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">8 tables, no governance tables
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Added review_queue, escalation_log, artifact_versions, audit_log
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Reviewer fatigue
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Not addressed
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Named as a product risk to test in the pilot
+v3 → v4
+<w:tblPr><w:tblW w:type="dxa" w:w="10080"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="2016"/><w:gridCol w:w="3830"/><w:gridCol w:w="4234"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Area
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">v3
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">v4 correction
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Onboarding
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Team creation folded into “configure company”
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Explicit, ordered step: teams created before projects
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Project structure
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Flat task breakdown from scope
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Two-pass breakdown: project → phases → tasks; phases is now its own table
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Resource management
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Documented only as an edge case
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Elevated to a first-order design requirement (Section 9): allocation tracked across all active projects
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Blockers
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Only raised_by tracked
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Added assigned_to, distinct from who raised it
+v4 → v4.1 (patch)
+<w:tblPr><w:tblW w:type="dxa" w:w="10080"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="2016"/><w:gridCol w:w="3830"/><w:gridCol w:w="4234"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Area
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">v4
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">v4.1 correction
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Runtime model
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Fable 5 listed as both build and runtime model
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Fable 5 is build-only (Claude Code); Claude Sonnet 5 is the runtime model for every deployed skill call
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Skill library
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Process column read “Fable 5” for every LLM/hybrid skill
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="FFFFFF" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Corrected to “Sonnet 5” throughout
+v4.1 → v5
+<w:tblPr><w:tblW w:type="dxa" w:w="10080"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="2016"/><w:gridCol w:w="3830"/><w:gridCol w:w="4234"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Area
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">v4.1
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="1F3864" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b/><w:bCs/><w:color w:val="FFFFFF"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">v5 correction
+<w:tc><w:tcPr><w:tcW w:type="dxa" w:w="2016"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Skill documentation
+<w:tcPr><w:tcW w:type="dxa" w:w="3830"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Detailed step-by-step flows lived in a separate companion document
+<w:tcPr><w:tcW w:type="dxa" w:w="4234"/><w:shd w:fill="EEF1F6" w:val="clear"/></w:tcPr><w:p><w:r><w:rPr><w:b w:val="false"/><w:bCs w:val="false"/><w:color w:val="262626"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t xml:space="preserve">Merged into the PRD as Section 8, directly under the skill summary table it expands on
