@@ -204,6 +204,81 @@ def test_paused_project_runs_nothing_but_escalations(world):
     assert audits_after == audits_before
 
 
+@pytest.mark.parametrize("error_name", ["refusal", "transport"])
+def test_explanation_failure_never_blocks_cycle_or_duplicates_items(world, error_name):
+    """Review clarification (Phase 6): enrichment failure — refusal OR
+    transport error — leaves the slip_impact standing with its raw diff, adds
+    no second item, and the cycle completes."""
+    import anthropic
+
+    from src.llm.sonnet_client import LLMRefusalError
+
+    error = (
+        LLMRefusalError("declined") if error_name == "refusal"
+        else anthropic.APIConnectionError(request=None)
+    )
+    _onboard(world)
+    world.execute(
+        "UPDATE tasks SET status = 'done', actual_start = planned_start,"
+        " actual_end = '2026-08-12' WHERE title = 'UI'"
+    )
+    world.commit()
+
+    state = graph.run_monitoring_cycle(
+        world, P1, date(2026, 8, 13), draft_comms=False,
+        sonnet=FakeSonnet([error]),
+    )
+    # cycle ran to completion: escalations node was reached
+    assert "escalations" in state["results"]
+    assert state["results"]["slips"]["handled"] == 1
+    assert state["results"]["slips"]["explained"] == 0
+    payload = json.loads(world.execute(
+        "SELECT payload FROM review_queue WHERE item_type = 'slip_impact'"
+    ).fetchone()["payload"])
+    assert "explanation" not in payload
+    assert payload["downstream_diffs"]  # raw diff intact — load-bearing
+    # exactly ONE slip item, and no clarification stacked on top of it
+    assert world.execute(
+        "SELECT COUNT(*) AS n FROM review_queue WHERE item_type = 'slip_impact'"
+    ).fetchone()["n"] == 1
+    assert world.execute(
+        "SELECT COUNT(*) AS n FROM review_queue WHERE item_type = 'clarification'"
+        " AND created_by_skill IN ('orchestrator', 'dependency_manager')"
+    ).fetchone()["n"] == 0
+
+
+def test_comms_cadence_gate(world):
+    """draft_comms=None applies the configured cadence (biweekly here): due
+    when never drafted, not due the next day, due again after the interval."""
+    config_loader.save_client_config(world, 1, dict(CONFIG, comms_cadence="biweekly"))
+    _onboard(world)
+    assert graph.comms_due(world, P1, date(2026, 8, 5)) is True  # never drafted
+
+    fake = FakeSonnet([{"candidates": []}, "Exec update."])
+    world.execute(
+        "INSERT INTO status_reports (task_id, member_id, raw_text)"
+        " VALUES ((SELECT task_id FROM tasks WHERE title='API'), 1, 'x')"
+    )
+    world.commit()
+    fake = FakeSonnet([
+        {"status": "in_progress", "percent_complete": 25, "hours_spent": 4,
+         "is_ambiguous": False, "note": None},
+        {"candidates": []},
+        "Exec update.",
+    ])
+    state = graph.run_monitoring_cycle(world, P1, date(2026, 8, 5), sonnet=fake)
+    assert state["results"]["comms"] == {"drafts": 1}  # cadence made it due
+
+    # pin the draft's wall-clock created_at to the simulated cycle date
+    world.execute(
+        "UPDATE review_queue SET created_at = '2026-08-05 12:00:00'"
+        " WHERE item_type = 'comms_draft'"
+    )
+    world.commit()
+    assert graph.comms_due(world, P1, date(2026, 8, 6)) is False   # next day: not due
+    assert graph.comms_due(world, P1, date(2026, 8, 19)) is True   # 14 days later
+
+
 # --- close path -----------------------------------------------------------------
 
 def test_close_path_retrospective_gated_archive(world):

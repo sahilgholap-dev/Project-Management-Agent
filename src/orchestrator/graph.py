@@ -25,8 +25,10 @@ import json
 import sqlite3
 from datetime import date
 
+import anthropic
 from langgraph.graph import END, START, StateGraph
 
+from src import config_loader
 from src.governance import escalation
 from src.governance.review_queue import annotate_item
 from src.lib import audit
@@ -45,6 +47,28 @@ from src.skills import (
 
 def _today(state: ProjectState) -> date:
     return date.fromisoformat(state["today"])
+
+
+_CADENCE_DAYS = {"daily": 1, "weekly": 7, "biweekly": 14}
+
+
+def comms_due(conn: sqlite3.Connection, project_id: int, today: date) -> bool:
+    """The comms_cadence gate (PRD 8.8 trigger): drafts run on the client's
+    configured cadence — project overrides respected — not every monitoring
+    cycle. No cadence configured means comms are ad-hoc only (a reviewer can
+    still request a draft by passing draft_comms=True explicitly)."""
+    cadence = config_loader.resolve(conn, project_id, "comms_cadence")
+    if cadence is None:
+        return False
+    last = conn.execute(
+        "SELECT MAX(created_at) AS last FROM review_queue"
+        " WHERE project_id = ? AND item_type = 'comms_draft'",
+        (project_id,),
+    ).fetchone()["last"]
+    if last is None:
+        return True
+    last_date = date.fromisoformat(last[:10])
+    return (today - last_date).days >= _CADENCE_DAYS[cadence]
 
 
 def build_onboarding_graph(conn: sqlite3.Connection, sonnet: SonnetClient | None = None):
@@ -121,8 +145,13 @@ def build_monitoring_graph(conn: sqlite3.Connection, sonnet: SonnetClient | None
                 continue
             try:
                 explanation = explain_slip(payload, sonnet)
-            except (LLMRefusalError, LLMValidationError):
-                continue  # the raw diff is still in the payload
+            except (LLMRefusalError, LLMValidationError, anthropic.APIError):
+                # Enrichment is optional on top of a load-bearing item: the
+                # slip_impact stands with its raw diff, NO second review item
+                # is stacked on it, and the cycle continues — a transient
+                # model hiccup must never block monitoring or duplicate the
+                # reviewer's queue.
+                continue
             annotate_item(conn, row["item_id"], "explanation", explanation)
             explained += 1
         conn.commit()
@@ -189,8 +218,13 @@ def onboard_project(
 
 def run_monitoring_cycle(
     conn: sqlite3.Connection, project_id: int, today: date,
-    draft_comms: bool = False, sonnet: SonnetClient | None = None,
+    draft_comms: bool | None = None, sonnet: SonnetClient | None = None,
 ) -> ProjectState:
+    """One monitoring cycle. draft_comms=None (the default) applies the
+    comms_cadence gate; True forces an ad-hoc draft (PRD 8.8's 'ad hoc
+    reviewer request' trigger); False suppresses it."""
+    if draft_comms is None:
+        draft_comms = comms_due(conn, project_id, today)
     graph = build_monitoring_graph(conn, sonnet)
     return graph.invoke({
         "project_id": project_id, "today": today.isoformat(),
