@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 SRC = Path(__file__).resolve().parent.parent / "src"
+API = Path(__file__).resolve().parent.parent / "api"
 
 DETERMINISTIC_MODULES = [
     SRC / "skills" / "scheduler.py",
@@ -82,17 +83,45 @@ def test_src_imports_are_allowlisted_no_send_capability():
     assert not re.search(r"def\s+send", comms), "comms module defines a send function"
 
 
+# api/ allowlist (FRONTEND_IMPLEMENTATION_PLAN.md section 1): the src/ list
+# plus INBOUND-serving frameworks and stdlib auth primitives. Outbound-capable
+# modules stay forbidden — the API can receive HTTP, it cannot send anything.
+# uvicorn is listed for completeness (the server is launched via
+# `python -m uvicorn`, app code need not import it).
+API_ALLOWED_IMPORT_ROOTS = ALLOWED_IMPORT_ROOTS | {
+    "api", "fastapi", "pydantic", "starlette", "uvicorn",
+    "secrets", "hashlib", "hmac", "contextlib", "sys",
+}
+
+
+def test_api_imports_are_allowlisted_no_send_capability():
+    """The api/ layer must not reintroduce outbound-send capability: its
+    allowlist adds only inbound-serving frameworks and stdlib auth. Any
+    outbound client (requests/httpx/smtplib/boto3/subprocess/...) anywhere
+    in api/ fails this test."""
+    violations = {}
+    for path in API.rglob("*.py"):
+        bad = sorted(set(_import_roots(path)) - API_ALLOWED_IMPORT_ROOTS)
+        if bad:
+            violations[str(path.relative_to(API))] = bad
+    assert not violations, f"api/ imports outside its allowlist: {violations}"
+
+
 def test_allowlist_itself_contains_no_network_or_process_modules():
     """Guard the guard: nobody can quietly add an outbound-capable module to
-    the allowlist without this list also being edited."""
+    EITHER allowlist without this list also being edited."""
     forbidden = {
         "subprocess", "os", "socket", "ssl", "urllib", "http", "smtplib",
         "email", "ftplib", "telnetlib", "asyncio", "ctypes", "requests",
         "httpx", "aiohttp", "boto3", "botocore", "sendgrid", "twilio",
         "slack_sdk", "pika", "kafka",
     }
-    overlap = ALLOWED_IMPORT_ROOTS & forbidden
-    assert not overlap, f"network/process-capable modules in the allowlist: {overlap}"
+    for name, allowlist in [("src", ALLOWED_IMPORT_ROOTS),
+                            ("api", API_ALLOWED_IMPORT_ROOTS)]:
+        overlap = allowlist & forbidden
+        assert not overlap, (
+            f"network/process-capable modules in the {name} allowlist: {overlap}"
+        )
 
 
 def test_review_queue_status_writers_are_exactly_two_modules():
@@ -100,14 +129,18 @@ def test_review_queue_status_writers_are_exactly_two_modules():
     approval/rejection has exactly ONE code path (resolve_item), and the only
     other module allowed to touch review_queue.status is escalation.py, whose
     writes are hard-coded 'escalated'/'paused' literals — rungs UP the ladder,
-    never an approval. Any new writer anywhere in src/ fails this test."""
+    never an approval. Any new writer anywhere in src/ OR api/ fails this
+    test — the API layer resolves items exclusively through resolve_item."""
     allowed = {"review_queue.py", "escalation.py"}
     writers = {}
-    for path in SRC.rglob("*.py"):
-        source = path.read_text(encoding="utf-8")
-        hits = re.findall(r"UPDATE\s+review_queue\s+SET[^\"]*", source, re.IGNORECASE)
-        if hits:
-            writers[path.name] = hits
+    for root in (SRC, API):
+        for path in root.rglob("*.py"):
+            source = path.read_text(encoding="utf-8")
+            hits = re.findall(
+                r"UPDATE\s+review_queue\s+SET[^\"]*", source, re.IGNORECASE
+            )
+            if hits:
+                writers[path.name] = hits
     assert set(writers) <= allowed, f"unexpected review_queue writers: {writers}"
 
     # escalation.py may only write the two non-terminal ladder statuses
@@ -116,10 +149,11 @@ def test_review_queue_status_writers_are_exactly_two_modules():
         assert "approved" not in stmt and "rejected" not in stmt, stmt
 
     # the terminal statuses appear in exactly one module
-    for path in SRC.rglob("*.py"):
-        if path.name in allowed:
-            continue
-        source = path.read_text(encoding="utf-8")
-        assert not re.search(
-            r"review_queue\s+SET\s+status", source, re.IGNORECASE
-        ), f"{path} writes review_queue.status"
+    for root in (SRC, API):
+        for path in root.rglob("*.py"):
+            if path.name in allowed:
+                continue
+            source = path.read_text(encoding="utf-8")
+            assert not re.search(
+                r"review_queue\s+SET\s+status", source, re.IGNORECASE
+            ), f"{path} writes review_queue.status"
