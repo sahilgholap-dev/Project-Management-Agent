@@ -309,21 +309,16 @@ Decision record for the five follow-ups (confirmed in review, 2026-07-22):
    consistent with the build's standing never-silently-proceed principle.
 5. **NEW-OQ 5 — ISO weeks, Monday start**, aligned with the Mon–Fri working calendar.
 
-### Known limitations — accepted for v1, tracked as fast-follows
+### Known limitations — tracked fast-follows
 
-**FF-1 — Capacity math ignores `percent_complete` (flagged at rev-1 review; deliberately
-not bundled into the time-phasing fix).** Every version of the load calculation counts a
-task's full original `effort_hours` while its status isn't `done`/`cancelled` — a task
-at 90% still consumes its whole estimate. Error direction is strictly safe: load is only
-ever **overstated**, so the worst outcome is a spurious `unassignable` + Tier 1 flag
-(human-visible, overridable), never a silent over-allocation — which is why it ships.
-Planned fix: remaining-effort weighting
-(`effort_hours × (1 − COALESCE(percent_complete, 0)/100)`) inside `lib/allocation.py`,
-picked up **immediately after Phase 1 step 5 lands**, while that module is still open —
-not later, to avoid touching the same code twice. It needs its own small test set
-because `percent_complete` is self-reported and often NULL (§8.4 "if mentioned"):
-NULL treated as 0% (full effort — conservative), stale reports, and a 100%-reported
-task whose status isn't yet `done`. `test_allocation.py` and the schema doc's
-cross-check query get updated in the same change.
+**FF-1 — Capacity math vs `percent_complete`: ✅ IMPLEMENTED (Phase 1, second commit).**
+Remaining-effort weighting (`effort_hours × (1 − COALESCE(percent_complete, 0)/100)`)
+landed in `lib/allocation.py::remaining_effort()` immediately after the allocation
+library, while the module was still open, as planned. Confirmed semantics: NULL
+`percent_complete` = 0% complete (full effort — no signal means nothing is confirmed
+done); a task reported 100% but not statused `done` contributes nothing; the candidate
+task being assigned always counts at full effort. Dedicated tests in
+`tests/test_allocation.py` cover NULL, partial, 100%-not-done, and
+capacity-freeing-as-work-completes.
 
 Nothing blocks Phase 0. Implementation starts on your explicit go-ahead.

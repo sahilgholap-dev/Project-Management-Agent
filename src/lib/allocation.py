@@ -12,9 +12,12 @@ tests both call this; nothing else computes load. Rules (all confirmed):
 - team_members.allocated_hrs is a display cache of current-week load; it is
   refreshed here but never read for decisions.
 
-Known limitation FF-1 (accepted, tracked in IMPLEMENTATION_PLAN.md section 6):
-full effort_hours counts while a task is open, ignoring percent_complete.
-Errs safe (load only ever overstated).
+FF-1 (remaining-effort weighting, confirmed fast-follow): an existing task's
+load contribution is effort_hours * (1 - percent_complete/100). A NULL
+percent_complete counts as 0% complete — no signal means assume nothing is
+confirmed done (full effort, the conservative direction). A task reported
+100% but not yet statused done contributes nothing. The candidate task being
+assigned always counts at full effort (it hasn't started).
 """
 
 from __future__ import annotations
@@ -72,7 +75,8 @@ def _open_owned_tasks(
     """Open, dated tasks the member owns across every ACTIVE project (PRD
     section 9: cross-project by design)."""
     rows = conn.execute(
-        "SELECT t.task_id, t.effort_hours, t.planned_start, t.planned_end"
+        "SELECT t.task_id, t.effort_hours, t.percent_complete,"
+        "       t.planned_start, t.planned_end"
         " FROM tasks t JOIN projects p ON p.project_id = t.project_id"
         " WHERE t.owner_id = ? AND p.status = 'active'"
         "   AND t.status NOT IN ('done','cancelled')"
@@ -80,6 +84,13 @@ def _open_owned_tasks(
         (member_id,),
     ).fetchall()
     return [r for r in rows if r["task_id"] != exclude_task_id]
+
+
+def remaining_effort(effort_hours: float, percent_complete: float | None) -> float:
+    """FF-1: remaining-effort weighting. NULL percent_complete -> 0% complete
+    (full effort counted — no signal means nothing is confirmed done)."""
+    done_fraction = (percent_complete or 0.0) / 100.0
+    return effort_hours * (1.0 - done_fraction)
 
 
 def member_weekly_load(
@@ -92,8 +103,11 @@ def member_weekly_load(
     task the member owns on any active project."""
     load: dict[date, float] = {}
     for task in _open_owned_tasks(conn, member_id, exclude_task_id):
+        effort = remaining_effort(task["effort_hours"], task["percent_complete"])
+        if effort <= 0:
+            continue
         contributions = task_week_contributions(
-            task["effort_hours"],
+            effort,
             date.fromisoformat(task["planned_start"]),
             date.fromisoformat(task["planned_end"]),
             calendar,

@@ -264,16 +264,12 @@ GROUP BY t.owner_id;
 The old rev-1 flat sum (`SUM(effort_hours)` unconditioned on dates) is retired — it made
 anyone with a normal multi-week pipeline look permanently at capacity.
 
-**Known limitation (accepted for v1, fast-follow — see IMPLEMENTATION_PLAN.md §6):**
-the load calculation counts a task's **full original `effort_hours`** for as long as its
-status isn't `done`/`cancelled`, ignoring `percent_complete` — a task at 90% done still
-consumes its whole estimate. This errs strictly in the safe direction: load is only ever
-**overstated**, so it can cause a spurious `unassignable` flag (human-visible, Tier 1,
-overridable) but never a silent over-allocation. The eventual fix is remaining-effort
-weighting, e.g. `effort_hours × (1 − COALESCE(percent_complete, 0)/100)`, applied in
-`lib/allocation.py` and mirrored here — deferred because `percent_complete` is a
-self-reported, often-NULL signal (§8.4 "if mentioned") and deserves its own test cases
-rather than a rushed edit.
+**FF-1 — remaining-effort weighting (IMPLEMENTED, Phase 1):** an open task contributes
+`effort_hours × (1 − COALESCE(percent_complete, 0)/100)` to load, per `lib/allocation.py`
+(`remaining_effort()`). NULL `percent_complete` counts as 0% complete — no signal means
+nothing is confirmed done (full effort, the conservative direction). A task reported 100%
+but not yet statused `done` contributes nothing. Covered by dedicated tests in
+`tests/test_allocation.py` (NULL, partial, 100%-not-done, capacity-frees-as-work-completes).
 
 ### status_reports — self-report inbox (added per Q7; not in PRD §12)
 

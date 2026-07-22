@@ -153,6 +153,39 @@ def test_holiday_week_capacity_enforced(conn):
     assert not al.fits_capacity(conn, 1, 40, 8, date(2026, 8, 10), date(2026, 8, 13), CAL)
 
 
+# --- FF-1: remaining-effort weighting ----------------------------------------
+
+def test_partially_complete_task_contributes_remaining_effort(conn):
+    _world(conn)
+    _task(conn, 1, 10, 32, "2026-08-03", "2026-08-06")
+    conn.execute("UPDATE tasks SET percent_complete = 75 WHERE task_id = 1")
+    assert al.member_weekly_load(conn, 1, CAL) == {WK1: 8}  # 32 * 25%
+
+
+def test_null_percent_complete_counts_full_effort(conn):
+    """No signal means nothing is confirmed done — full effort, conservative."""
+    _world(conn)
+    _task(conn, 1, 10, 32, "2026-08-03", "2026-08-06")  # percent_complete NULL
+    assert al.member_weekly_load(conn, 1, CAL) == {WK1: 32}
+
+
+def test_hundred_percent_but_not_done_contributes_nothing(conn):
+    _world(conn)
+    _task(conn, 1, 10, 32, "2026-08-03", "2026-08-06", status="in_progress")
+    conn.execute("UPDATE tasks SET percent_complete = 100 WHERE task_id = 1")
+    assert al.member_weekly_load(conn, 1, CAL) == {}
+
+
+def test_fits_capacity_frees_room_as_work_completes(conn):
+    _world(conn)
+    _task(conn, 1, 10, 40, "2026-08-03", "2026-08-07")  # week 1 nominally full
+    assert not al.fits_capacity(conn, 1, 40, 20, date(2026, 8, 3), date(2026, 8, 7), CAL)
+    conn.execute("UPDATE tasks SET percent_complete = 50 WHERE task_id = 1")
+    conn.commit()
+    # 20h remaining + 20h candidate = 40: fits now
+    assert al.fits_capacity(conn, 1, 40, 20, date(2026, 8, 3), date(2026, 8, 7), CAL)
+
+
 def test_refresh_allocated_cache_is_current_week_only(conn):
     _world(conn)
     _task(conn, 1, 10, 16, "2026-08-03", "2026-08-04")   # week 1
