@@ -2,9 +2,11 @@
 directly — they call raise_review_item, which derives the tier from the frozen
 map (never from config or a caller argument) and always starts at 'pending'.
 
-The reviewer approve/reject flow and the silence-escalation ladder land in
-Phase 4; raising items is final as of Phase 1 because every deterministic
-skill needs it."""
+Resolution (approve/reject) requires a live human user id — resolve_item is
+the only resolution path, there is no auto-approve function anywhere, and the
+DB CHECK independently rejects approved/rejected rows without resolved_by.
+Silence never resolves anything: it escalates (escalation.py) and ultimately
+pauses the project."""
 
 from __future__ import annotations
 
@@ -14,6 +16,10 @@ from typing import Any
 
 from src.governance.tiers import TIER_BY_ITEM_TYPE
 from src.lib import audit
+
+
+class ResolutionError(Exception):
+    pass
 
 
 def raise_review_item(
@@ -43,3 +49,62 @@ def raise_review_item(
         project_id=project_id,
     )
     return item_id
+
+
+def resolve_item(
+    conn: sqlite3.Connection,
+    item_id: int,
+    resolved_by: int,
+    decision: str,
+    notes: str | None = None,
+) -> dict:
+    """Human resolution — the single approve/reject path (PRD section 10).
+
+    resolved_by must be an existing, non-disabled user; decision is 'approved'
+    or 'rejected'. Resolvable from pending, escalated, or paused (a paused
+    project's reviewer finally responding is exactly this call). Resolution of
+    a Tier 3 item propagates to its linked change request / sign-off packet.
+    """
+    if decision not in ("approved", "rejected"):
+        raise ResolutionError(f"decision must be approved or rejected, not {decision!r}")
+    user = conn.execute(
+        "SELECT invite_status FROM users WHERE user_id = ?", (resolved_by,)
+    ).fetchone()
+    if user is None or user["invite_status"] == "disabled":
+        raise ResolutionError(f"resolver user {resolved_by} does not exist or is disabled")
+    item = conn.execute(
+        "SELECT project_id, item_type, tier, status FROM review_queue WHERE item_id = ?",
+        (item_id,),
+    ).fetchone()
+    if item is None:
+        raise ResolutionError(f"review item {item_id} does not exist")
+    if item["status"] in ("approved", "rejected"):
+        raise ResolutionError(f"review item {item_id} is already {item['status']}")
+
+    conn.execute(
+        "UPDATE review_queue SET status = ?, resolved_by = ?,"
+        " resolved_at = datetime('now'), reviewer_notes = ? WHERE item_id = ?",
+        (decision, resolved_by, notes, item_id),
+    )
+
+    # Tier 3 linkage: the review item IS the approval gate for the form row.
+    if item["item_type"] == "change_request":
+        conn.execute(
+            "UPDATE change_requests SET status = ? WHERE review_item_id = ?",
+            ("approved" if decision == "approved" else "rejected", item_id),
+        )
+    elif item["item_type"] == "signoff_packet":
+        conn.execute(
+            "UPDATE signoff_packets SET status = ? WHERE review_item_id = ?",
+            ("signed_off" if decision == "approved" else "rejected", item_id),
+        )
+
+    audit.log_action(
+        conn, skill="governance", action="resolve_item",
+        input_summary={"item_id": item_id, "decision": decision,
+                       "item_type": item["item_type"], "tier": item["tier"]},
+        actor=str(resolved_by),
+        project_id=item["project_id"],
+    )
+    conn.commit()
+    return {"item_id": item_id, "decision": decision, "tier": item["tier"]}
