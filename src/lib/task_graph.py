@@ -26,11 +26,16 @@ class TaskGraph:
 
     @classmethod
     def for_project(cls, conn: sqlite3.Connection, project_id: int) -> TaskGraph:
-        """Graph over the project's schedulable (not cancelled) tasks."""
+        """Graph over the project's schedulable tasks: not cancelled AND
+        carrying an effort estimate. A NULL-effort task (NEW-OQ 4 treatment)
+        has no duration, so it cannot participate in CPM; edges through it are
+        not traversed until a reviewer supplies an estimate — the task's own
+        Tier 1 flag is what keeps that visible."""
         task_ids = [
             r["task_id"]
             for r in conn.execute(
-                "SELECT task_id FROM tasks WHERE project_id = ? AND status != 'cancelled'",
+                "SELECT task_id FROM tasks WHERE project_id = ? AND status != 'cancelled'"
+                " AND effort_hours IS NOT NULL",
                 (project_id,),
             )
         ]

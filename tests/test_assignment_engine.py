@@ -115,6 +115,29 @@ def test_dateless_task_is_refused_with_clarification(world):
     ).fetchone()["n"] == 1
 
 
+def test_unestimated_task_is_refused_with_clarification(world):
+    """NEW-OQ 4 treatment for NULL effort: refuse, flag, never assign."""
+    world.execute(
+        "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours,"
+        " skill_tags, planned_start, planned_end)"
+        " VALUES (15, 2, ?, 'unestimated', NULL, ?, '2026-08-18', '2026-08-18')",
+        (ka.PROJECT_ID, json.dumps(["backend"])),
+    )
+    world.commit()
+    outcomes = assignment_engine.assign_tasks(world, ka.PROJECT_ID, today=TODAY)
+    assert outcomes[15] is None
+    row = world.execute(
+        "SELECT owner_id, unassignable FROM tasks WHERE task_id = 15"
+    ).fetchone()
+    assert row["owner_id"] is None and row["unassignable"] == 1
+    payloads = [
+        r["payload"] for r in world.execute(
+            "SELECT payload FROM review_queue WHERE item_type = 'clarification'"
+        )
+    ]
+    assert any("no effort estimate" in p for p in payloads)
+
+
 def test_inactive_members_are_excluded(world):
     world.execute("UPDATE team_members SET is_active = 0 WHERE member_id = ?", (ka.M3,))
     world.commit()

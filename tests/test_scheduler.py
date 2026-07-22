@@ -74,6 +74,53 @@ def test_run_is_audit_logged(world):
     assert row["n"] == 1
 
 
+def test_unestimated_task_excluded_from_cpm_and_flagged(world):
+    """NEW-OQ 4 treatment for NULL effort: no CPM participation, Tier 1 flag,
+    known-answer schedule for every estimated task unchanged."""
+    world.execute(
+        "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours)"
+        " VALUES (99, 2, ?, 'converted from meeting', NULL)",
+        (ka.PROJECT_ID,),
+    )
+    world.commit()
+    scheduler.schedule_project(world, ka.PROJECT_ID)
+
+    row = world.execute(
+        "SELECT planned_start, needs_clarification FROM tasks WHERE task_id = 99"
+    ).fetchone()
+    assert row["planned_start"] is None  # never scheduled on a guess
+    assert "no effort estimate" in row["needs_clarification"]
+    item = world.execute(
+        "SELECT tier, payload FROM review_queue WHERE item_type = 'clarification'"
+    ).fetchone()
+    assert item["tier"] == 1 and '"task_id": 99' in item["payload"]
+
+    got = {
+        r["task_id"]: (r["planned_start"], r["planned_end"], r["slack_days"],
+                       bool(r["on_critical_path"]))
+        for r in world.execute(
+            "SELECT task_id, planned_start, planned_end, slack_days, on_critical_path"
+            " FROM tasks WHERE task_id != 99"
+        )
+    }
+    assert got == ka.EXPECTED_SCHEDULE  # estimated tasks unaffected
+
+
+def test_unestimated_flagging_is_idempotent(world):
+    world.execute(
+        "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours)"
+        " VALUES (99, 2, ?, 'converted', NULL)",
+        (ka.PROJECT_ID,),
+    )
+    world.commit()
+    scheduler.schedule_project(world, ka.PROJECT_ID)
+    scheduler.schedule_project(world, ka.PROJECT_ID)  # re-run: no duplicate item
+    n = world.execute(
+        "SELECT COUNT(*) AS n FROM review_queue WHERE item_type = 'clarification'"
+    ).fetchone()["n"]
+    assert n == 1
+
+
 def test_missing_timeline_is_a_hard_error(world):
     world.execute("UPDATE projects SET timeline_end = NULL WHERE project_id = ?", (ka.PROJECT_ID,))
     with pytest.raises(scheduler.SchedulerError):

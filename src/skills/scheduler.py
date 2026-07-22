@@ -126,11 +126,40 @@ def _load_inputs(conn: sqlite3.Connection, project_id: int):
             "SELECT t.task_id, t.effort_hours, t.phase_id, t.status, t.actual_end,"
             "       p.planned_start AS phase_start, p.planned_end AS phase_end"
             " FROM tasks t JOIN phases p ON p.phase_id = t.phase_id"
-            " WHERE t.project_id = ? AND t.status != 'cancelled'",
+            " WHERE t.project_id = ? AND t.status != 'cancelled'"
+            "   AND t.effort_hours IS NOT NULL",
             (project_id,),
         )
     }
     return project, calendar, tasks
+
+
+def _flag_unestimated_tasks(conn: sqlite3.Connection, project_id: int) -> int:
+    """A NULL effort estimate gets the NEW-OQ 4 treatment: the task cannot
+    enter CPM, so it is excluded, flagged, and raised as a Tier 1 item —
+    never scheduled on a guessed number. Idempotent: only unflagged tasks
+    raise a new item."""
+    rows = conn.execute(
+        "SELECT task_id, title FROM tasks"
+        " WHERE project_id = ? AND status != 'cancelled'"
+        "   AND effort_hours IS NULL AND needs_clarification IS NULL",
+        (project_id,),
+    ).fetchall()
+    for row in rows:
+        conn.execute(
+            "UPDATE tasks SET needs_clarification ="
+            " 'no effort estimate; excluded from scheduling until estimated'"
+            " WHERE task_id = ?",
+            (row["task_id"],),
+        )
+        raise_review_item(
+            conn, project_id, "clarification",
+            {"task_id": row["task_id"], "title": row["title"],
+             "reason": "task has no effort estimate; excluded from CPM until"
+                       " a reviewer supplies one"},
+            created_by_skill="scheduler",
+        )
+    return len(rows)
 
 
 def schedule_project(
@@ -143,7 +172,9 @@ def schedule_project(
     on_critical_path. Returns {task_id: {planned_start, planned_end, slack_days,
     on_critical_path}} for the scheduled scope."""
     project, calendar, tasks = _load_inputs(conn, project_id)
+    _flag_unestimated_tasks(conn, project_id)
     if not tasks:
+        conn.commit()
         return {}
 
     start = date.fromisoformat(project["timeline_start"])

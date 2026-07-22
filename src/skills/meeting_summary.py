@@ -7,10 +7,11 @@ input.
 
 Conversion (PRD 8.7 step 5): an action item implying new work becomes a linked
 task (converted_task_id / source_action_item_id) in the earliest open phase.
-The effort estimate cannot be known from meeting notes, so the task is created
-with a placeholder estimate that is explicitly FLAGGED as needing clarification
-— a flagged default, never a silent guess. A blocker with unclear ownership is
-left unassigned and flagged (PRD 8.7 step 6).
+The effort estimate cannot be known from meeting notes, so effort_hours is
+left NULL — the Scheduler and Assignment Engine refuse-and-flag such tasks
+(same treatment as a NULL planned window, NEW-OQ 4) until a reviewer supplies
+a real estimate. Never a guessed number in correctness-critical math. A
+blocker with unclear ownership is left unassigned and flagged (PRD 8.7 step 6).
 """
 
 from __future__ import annotations
@@ -24,8 +25,6 @@ from src.lib import audit
 from src.llm.sonnet_client import LLMRefusalError, LLMValidationError, SonnetClient
 
 _PROMPTS = Path(__file__).resolve().parent.parent.parent / "prompts"
-
-PLACEHOLDER_EFFORT_HOURS = 8  # flagged, reviewer-corrected — see module docstring
 
 MEETING_SCHEMA = {
     "type": "object",
@@ -159,10 +158,11 @@ def run(
                 "INSERT INTO tasks (phase_id, project_id, title, description,"
                 " effort_hours, skill_tags, owner_id, source_action_item_id,"
                 " needs_clarification)"
-                " VALUES (?, ?, ?, ?, ?, '[]', ?, ?, ?)",
+                " VALUES (?, ?, ?, ?, NULL, '[]', ?, ?, ?)",
                 (phase_id, project_id, item["description"][:120], item["description"],
-                 PLACEHOLDER_EFFORT_HOURS, owner_id, action_item_id,
-                 "effort estimate is a placeholder — converted from a meeting action item"),
+                 owner_id, action_item_id,
+                 "no effort estimate — converted from a meeting action item;"
+                 " excluded from scheduling and assignment until estimated"),
             )
             conn.execute(
                 "UPDATE meeting_action_items SET converted_task_id = ?, status = 'converted'"

@@ -80,6 +80,7 @@ def _open_owned_tasks(
         " FROM tasks t JOIN projects p ON p.project_id = t.project_id"
         " WHERE t.owner_id = ? AND p.status = 'active'"
         "   AND t.status NOT IN ('done','cancelled')"
+        "   AND t.effort_hours IS NOT NULL"
         "   AND t.planned_start IS NOT NULL AND t.planned_end IS NOT NULL",
         (member_id,),
     ).fetchall()

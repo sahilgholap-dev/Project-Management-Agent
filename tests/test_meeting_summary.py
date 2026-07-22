@@ -99,7 +99,9 @@ def test_new_work_action_item_converts_to_linked_flagged_task(world):
         (item["converted_task_id"],),
     ).fetchone()
     assert task["source_action_item_id"] == item["action_item_id"]
-    # placeholder estimate is flagged, never silently trusted
+    # NEW-OQ 4 treatment: NO estimate is recorded — NULL, flagged, excluded
+    # from scheduling/assignment until a reviewer supplies a real number
+    assert task["effort_hours"] is None
     assert task["needs_clarification"] is not None
     payloads = [
         r["payload"] for r in world.execute(

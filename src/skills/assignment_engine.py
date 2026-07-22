@@ -84,6 +84,21 @@ def assign_tasks(
     for task in _tasks_needing_assignment(conn, project_id):
         task_id = task["task_id"]
 
+        # NEW-OQ 4 treatment for a missing estimate: no effort number means
+        # no capacity math — refuse and flag, never assign on a guess.
+        if task["effort_hours"] is None:
+            conn.execute(
+                "UPDATE tasks SET unassignable = 1 WHERE task_id = ?", (task_id,)
+            )
+            raise_review_item(
+                conn, project_id, "clarification",
+                {"task_id": task_id, "title": task["title"],
+                 "reason": "task has no effort estimate; cannot capacity-check"},
+                created_by_skill="assignment_engine",
+            )
+            outcomes[task_id] = None
+            continue
+
         # NEW-OQ 4: no planned window -> cannot be capacity-checked. Refuse.
         if not task["planned_start"] or not task["planned_end"]:
             conn.execute(

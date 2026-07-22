@@ -111,7 +111,9 @@ CREATE TABLE tasks (
     project_id       INTEGER NOT NULL REFERENCES projects(project_id),  -- denormalized for the cross-project capacity query (confirmed Q14)
     title            TEXT NOT NULL,
     description      TEXT,
-    effort_hours     REAL NOT NULL,
+    effort_hours     REAL,                        -- NULL = no confirmed estimate (e.g. converted from a meeting
+                                                  -- action item): Scheduler/Assignment Engine refuse-and-flag,
+                                                  -- same treatment as a NULL planned window (NEW-OQ 4 principle)
     skill_tags       TEXT NOT NULL DEFAULT '[]',  -- JSON array
     owner_id         INTEGER REFERENCES team_members(member_id),
     planned_start    TEXT,                        -- dateless task: Assignment Engine refuses + flags (confirmed NEW-OQ 4)

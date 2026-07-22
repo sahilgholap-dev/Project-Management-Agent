@@ -151,7 +151,11 @@ CREATE TABLE tasks (
     project_id       INTEGER NOT NULL REFERENCES projects(project_id), -- [confirmed Q14] denormalized for the cross-project capacity query
     title            TEXT NOT NULL,
     description      TEXT,
-    effort_hours     REAL NOT NULL,                          -- §8.1 "effort estimate", in hours
+    effort_hours     REAL,                                   -- §8.1 "effort estimate", in hours. NULL = no confirmed
+                                                             -- estimate (e.g. task converted from a meeting action item):
+                                                             -- Scheduler and Assignment Engine refuse-and-flag (Tier 1),
+                                                             -- same treatment as a NULL planned window (NEW-OQ 4 principle);
+                                                             -- excluded from CPM and capacity math until estimated.
     skill_tags       JSON NOT NULL DEFAULT '[]',             -- §8.1; matched against team_members.skill_tags (§8.3 step 2)
     owner_id         INTEGER REFERENCES team_members(member_id),  -- §8.3 writes tasks.owner_id; NULL until assigned / if unassignable
     planned_start    TEXT,                                   -- §8.2 writes; NULL until Scheduler runs.
