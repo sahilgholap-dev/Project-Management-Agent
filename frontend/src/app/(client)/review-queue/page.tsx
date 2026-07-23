@@ -1,6 +1,6 @@
 import { ItemCard } from "@/components/ItemCard";
 import { RefreshBar } from "@/components/RefreshBar";
-import { Me, ReviewItem, serverApi } from "@/lib/api";
+import { ReviewItem, requireClientUser, serverApi } from "@/lib/api";
 
 const TIER_LABELS: Record<number, string> = {
   1: "Tier 1 — single-tap approve / reject",
@@ -11,15 +11,13 @@ const TIER_LABELS: Record<number, string> = {
 export default async function ReviewQueuePage({ searchParams }: {
   searchParams: Promise<{ project_id?: string; status?: string }>;
 }) {
+  const me = await requireClientUser(); // gate BEFORE data (403-race guard)
   const params = await searchParams;
   const status = params.status ?? "pending";
   const query = new URLSearchParams({ status });
   if (params.project_id) query.set("project_id", params.project_id);
 
-  const [items, me] = await Promise.all([
-    serverApi<ReviewItem[]>(`/review-queue?${query}`),
-    serverApi<Me>("/auth/me"),
-  ]);
+  const items = await serverApi<ReviewItem[]>(`/review-queue?${query}`);
   const canResolve = me.role === "client_admin";
 
   // OQ-3 (approved): clarifications cluster by producing skill — visual

@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { CreateProjectForm } from "@/components/CreateProjectForm";
-import { Me, ProjectSummary, serverApi } from "@/lib/api";
+import { ProjectSummary, requireClientUser, serverApi } from "@/lib/api";
 
 export default async function ProjectListPage() {
-  const [projects, me] = await Promise.all([
-    serverApi<ProjectSummary[]>("/projects"),
-    serverApi<Me>("/auth/me"),
-  ]);
+  const me = await requireClientUser(); // gate BEFORE data (403-race guard)
+  const projects = await serverApi<ProjectSummary[]>("/projects");
 
   return (
     <main className="space-y-8">

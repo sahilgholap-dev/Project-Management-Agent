@@ -1,16 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProjectActions } from "@/components/ProjectActions";
-import { Me, ProjectDetail, serverApi, serverApiOrNull } from "@/lib/api";
+import { ProjectDetail, requireClientUser, serverApiOrNull } from "@/lib/api";
 
 export default async function ProjectDashboard({ params }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [project, me] = await Promise.all([
-    serverApiOrNull<ProjectDetail>(`/projects/${id}`),
-    serverApi<Me>("/auth/me"),
-  ]);
+  const me = await requireClientUser(); // gate BEFORE data (403-race guard)
+  const project = await serverApiOrNull<ProjectDetail>(`/projects/${id}`);
   if (!project) notFound();
 
   const tasksByPhase = new Map<number, ProjectDetail["tasks"]>();

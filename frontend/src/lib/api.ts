@@ -9,6 +9,7 @@
 // truth from SQLite (plan section 4).
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:8000";
 
@@ -42,6 +43,18 @@ export async function serverApiOrNull<T>(path: string): Promise<T | null> {
     }
     throw err;
   }
+}
+
+/** Client-portal pages call this FIRST, before any data fetch: layouts and
+ * pages render concurrently in the App Router, so a page must do its own
+ * auth/role gate rather than relying on the layout's redirect winning the
+ * race (a platform_admin hitting a client page would otherwise 403 on the
+ * data fetch and 500 the RSC stream). */
+export async function requireClientUser(): Promise<Me> {
+  const me = await serverApiOrNull<Me>("/auth/me");
+  if (!me) redirect("/login");
+  if (me.role === "platform_admin") redirect("/admin");
+  return me;
 }
 
 // ---- shared row shapes used by the screens (trimmed views of api-types) ----
