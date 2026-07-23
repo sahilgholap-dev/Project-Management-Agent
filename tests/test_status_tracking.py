@@ -209,7 +209,10 @@ def test_breach_raises_off_track_alert_and_rule_risk(world):
         "SELECT tier, payload FROM review_queue WHERE item_type = 'off_track_alert'"
     ).fetchone()
     assert alert["tier"] == 1
-    assert json.loads(alert["payload"])["value_hours"] == pytest.approx(-24)
+    payload = json.loads(alert["payload"])
+    assert payload["value_hours"] == pytest.approx(-24)
+    # OQ-2: the alert payload carries the flag the UI badges on
+    assert "cost_data_complete" in payload
     risk = world.execute(
         "SELECT title, source, status FROM risks_issues"
     ).fetchone()

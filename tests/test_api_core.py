@@ -187,6 +187,18 @@ def test_blocker_assignment_via_api(project):
     updated = client.get(f"/projects/{project_id}/blockers").json()[0]
     assert updated["assigned_to_name"] == "Dev B"
 
+    # resolve via the same HTTP surface, then verify BOTH actions were
+    # audit-logged with the logged-in human — parity with the risk-adjust check
+    resolved = client.patch(f"/blockers/{unowned['blocker_id']}",
+                            json={"resolve": True})
+    assert resolved.json()["status"] == "resolved"
+    final = client.get(f"/projects/{project_id}/blockers").json()[0]
+    assert final["status"] == "resolved" and final["resolved_at"]
+    audit = client.get(f"/projects/{project_id}/audit-log").json()
+    for action in ("assign_blocker", "resolve_blocker"):
+        entry = next(a for a in audit if a["action"] == action)
+        assert entry["actor"] != "agent"
+
 
 # --- close path ----------------------------------------------------------------------
 

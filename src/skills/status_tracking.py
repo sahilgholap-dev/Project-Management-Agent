@@ -210,7 +210,10 @@ def run_cycle(
              "threshold_hours": threshold_hours, "risk_id": risk_id,
              "risk_created": created,
              "pv": snap.planned_value, "ev": snap.earned_value,
-             "ac": snap.actual_cost},
+             "ac": snap.actual_cost,
+             # OQ-2 (approved): the UI renders this as an always-visible badge
+             # when false — it must be readable from the payload alone
+             "cost_data_complete": snap.cost_data_complete},
             created_by_skill="status_tracking",
         )
 
