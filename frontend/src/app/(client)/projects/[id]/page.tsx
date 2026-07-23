@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProjectActions } from "@/components/ProjectActions";
+import { Timeline } from "@/components/Timeline";
 import { ProjectDetail, requireClientUser, serverApiOrNull } from "@/lib/api";
 
 export default async function ProjectDashboard({ params }: {
@@ -57,6 +58,14 @@ export default async function ProjectDashboard({ params }: {
                 className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
             Settings
           </Link>
+          <Link href={`/projects/${project.project_id}/logs`}
+                className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
+            Logs
+          </Link>
+          <Link href={`/projects/${project.project_id}/close`}
+                className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
+            Close
+          </Link>
           <Link href={`/review-queue?project_id=${project.project_id}`}
                 className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
             Review queue
@@ -67,6 +76,10 @@ export default async function ProjectDashboard({ params }: {
       {me.role === "client_admin" && project.status !== "archived" && (
         <ProjectActions projectId={project.project_id} status={project.status}
                         hasPlan={project.tasks.length > 0} />
+      )}
+
+      {project.phases.length > 0 && (
+        <Timeline phases={project.phases} tasks={project.tasks} />
       )}
 
       {project.phases.length === 0 ? (
