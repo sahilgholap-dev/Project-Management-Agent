@@ -60,6 +60,13 @@ def project(env):
 
 # --- config ---------------------------------------------------------------------
 
+def test_unsaved_config_reads_as_404_not_422(env):
+    """'Not saved yet' is not a defect: the config screen must render its
+    seeded-defaults form, not crash (422 is reserved for rejected saves)."""
+    client, _, _ = env
+    assert client.get("/config").status_code == 404
+
+
 def test_config_validation_surfaces_defect_list(env):
     client, _, _ = env
     bad = dict(CONFIG, reporting_cadence="hourly")

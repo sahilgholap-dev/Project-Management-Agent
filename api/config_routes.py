@@ -4,7 +4,7 @@ Validation-on-every-save comes from the backend; a defective config returns
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from api.deps import Conn, User, require_role
 from api.errors import backend_errors
@@ -29,8 +29,12 @@ def list_users(conn: Conn, user: User) -> list[dict]:
 
 @router.get("/config", dependencies=[CLIENT_READ])
 def get_config(conn: Conn, user: User) -> dict:
-    with backend_errors():
+    """404 when no config row exists yet — 'not saved yet' is not a defect;
+    422-with-defects is reserved for rejected SAVES."""
+    try:
         return config_loader.load_client_config(conn, user["client_id"])
+    except config_loader.ConfigDefectError as err:
+        raise HTTPException(status_code=404, detail=str(err)) from err
 
 
 @router.put("/config", dependencies=[CLIENT_WRITE])
