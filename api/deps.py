@@ -24,8 +24,10 @@ PLATFORM_CLIENT_NAME = "__platform__"
 
 
 def get_conn(request: Request):
-    """One connection per request; schema is migrated once at app startup."""
-    conn = db.connect(request.app.state.db_path)
+    """One connection per request; schema is migrated once at app startup.
+    check_same_thread=False because FastAPI may run the dependency and the
+    endpoint body on different threadpool threads (sequential use only)."""
+    conn = db.connect(request.app.state.db_path, check_same_thread=False)
     try:
         yield conn
     finally:

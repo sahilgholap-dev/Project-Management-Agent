@@ -72,6 +72,44 @@ def test_tampered_session_cookie_rejected(env):
     assert client.get("/auth/me").status_code == 401
 
 
+def test_api_connections_survive_threadpool_handoff(env):
+    """Regression (live bug): FastAPI runs sync dependencies and endpoint
+    bodies on different threadpool threads; the per-request sqlite connection
+    must tolerate the sequential cross-thread hand-off. The in-process test
+    transport masks this, so reproduce the hand-off explicitly."""
+    import threading
+
+    _, _, db_path = env
+    from api.deps import get_conn
+
+    class FakeApp:
+        pass
+
+    class FakeRequest:
+        app = FakeApp()
+
+    FakeRequest.app.state = FakeApp()
+    FakeRequest.app.state.db_path = str(db_path)
+
+    generator = get_conn(FakeRequest())
+    conn = next(generator)  # "dependency thread" = this thread
+
+    result: list = []
+
+    def use_in_other_thread():
+        try:
+            result.append(conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"])
+        except Exception as err:  # pragma: no cover - the failure branch
+            result.append(err)
+
+    thread = threading.Thread(target=use_in_other_thread)
+    thread.start()
+    thread.join()
+    generator.close()
+    assert not isinstance(result[0], Exception), f"cross-thread use failed: {result[0]}"
+    assert result[0] >= 1
+
+
 def test_bootstrap_refuses_second_run(env):
     _, _, db_path = env
     with pytest.raises(SystemExit, match="refused"):

@@ -18,9 +18,17 @@ MIGRATIONS_DIR = REPO_ROOT / "schema" / "migrations"
 _MIGRATION_NAME = re.compile(r"^(\d{3})_.+\.sql$")
 
 
-def connect(db_path: str | Path = ":memory:") -> sqlite3.Connection:
-    """Open a connection with the pragmas every caller needs."""
-    conn = sqlite3.connect(str(db_path))
+def connect(
+    db_path: str | Path = ":memory:", check_same_thread: bool = True
+) -> sqlite3.Connection:
+    """Open a connection with the pragmas every caller needs.
+
+    check_same_thread=False is for the API layer: FastAPI runs sync
+    dependencies and endpoint bodies on different threadpool threads, but a
+    per-request connection is only ever used sequentially, so cross-thread
+    hand-off is safe — concurrent use would not be, and never happens.
+    """
+    conn = sqlite3.connect(str(db_path), check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
