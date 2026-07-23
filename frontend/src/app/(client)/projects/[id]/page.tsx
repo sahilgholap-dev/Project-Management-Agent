@@ -45,6 +45,18 @@ export default async function ProjectDashboard({ params }: {
                 className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
             Meetings
           </Link>
+          <Link href={`/projects/${project.project_id}/risks`}
+                className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
+            Risks
+          </Link>
+          <Link href={`/projects/${project.project_id}/blockers`}
+                className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
+            Blockers
+          </Link>
+          <Link href={`/projects/${project.project_id}/settings`}
+                className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
+            Settings
+          </Link>
           <Link href={`/review-queue?project_id=${project.project_id}`}
                 className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
             Review queue

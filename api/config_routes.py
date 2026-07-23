@@ -16,6 +16,17 @@ CLIENT_WRITE = require_role("client_admin")
 CLIENT_READ = require_role("client_admin", "member")
 
 
+@router.get("/users", dependencies=[CLIENT_READ])
+def list_users(conn: Conn, user: User) -> list[dict]:
+    """Client-scoped user list (id/name/role) so the config screen can offer
+    reviewer/approver selects. Plain read — no credentials exposed."""
+    return [dict(r) for r in conn.execute(
+        "SELECT user_id, display_name, email, role, invite_status FROM users"
+        " WHERE client_id = ? ORDER BY user_id",
+        (user["client_id"],),
+    )]
+
+
 @router.get("/config", dependencies=[CLIENT_READ])
 def get_config(conn: Conn, user: User) -> dict:
     with backend_errors():

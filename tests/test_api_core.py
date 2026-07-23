@@ -68,6 +68,14 @@ def test_config_validation_surfaces_defect_list(env):
     assert any("reporting_cadence" in d for d in response.json()["detail"]["defects"])
 
 
+def test_client_scoped_user_list_for_reviewer_selects(env):
+    client, _, _ = env
+    users = client.get("/users").json()
+    emails = {u["email"] for u in users}
+    assert emails == {"admin@acme.test", "dev@acme.test"}  # no platform admin leak
+    assert all("password" not in u and "password_hash" not in u for u in users)
+
+
 def test_resolved_config_shows_override_precedence(project):
     client, _, _, project_id = project
     client.put(f"/projects/{project_id}/overrides",

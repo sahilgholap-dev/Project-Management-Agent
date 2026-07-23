@@ -16,6 +16,12 @@ export default async function ClientLayout({ children }: { children: React.React
           <Link href="/review-queue" className="text-slate-600 hover:text-slate-900">
             Review queue
           </Link>
+          <Link href="/team" className="text-slate-600 hover:text-slate-900">
+            Team
+          </Link>
+          <Link href="/config" className="text-slate-600 hover:text-slate-900">
+            Config
+          </Link>
         </nav>
         <div className="flex items-center gap-3 text-sm text-slate-500">
           <span>{me.display_name} · {me.role}</span>
