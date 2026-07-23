@@ -36,10 +36,20 @@ export default async function ProjectDashboard({ params }: {
             {project.budget_total ? ` · budget ${project.budget_total}` : ""}
           </p>
         </div>
-        <Link href={`/review-queue?project_id=${project.project_id}`}
-              className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
-          Review queue for this project
-        </Link>
+        <nav className="flex gap-2">
+          <Link href={`/projects/${project.project_id}/status`}
+                className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
+            Status reports
+          </Link>
+          <Link href={`/projects/${project.project_id}/meetings`}
+                className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
+            Meetings
+          </Link>
+          <Link href={`/review-queue?project_id=${project.project_id}`}
+                className="rounded border px-3 py-1.5 text-xs hover:bg-slate-100">
+            Review queue
+          </Link>
+        </nav>
       </header>
 
       {me.role === "client_admin" && project.status !== "archived" && (

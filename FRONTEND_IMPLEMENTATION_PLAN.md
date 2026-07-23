@@ -242,16 +242,36 @@ Sequenced so the review queue and dashboard are usable as early as possible
   log views, admin portal, critical-path Gantt-ish rendering upgrade (a
   positioned-div timeline; no charting library unless it stays trivial).
 
-  F5 follow-ons (noted, not blocking): the session signing secret
-  (`.session_secret`) has no rotation path — regenerating it logs everyone
-  out; fine for a single-tester tool, revisit before any wider use.
+  F5 follow-ons (noted, not blocking):
+  - the session signing secret (`.session_secret`) has no rotation path —
+    regenerating it logs everyone out; fine for a single-tester tool,
+    revisit before any wider use.
+  - the session cookie carries no `Secure` attribute (plain-HTTP localhost
+    would drop it); add `Secure` when the tool is ever served over HTTPS.
+  - no password-reset flow for client users (platform admin can only be
+    reset by deleting nexus.db and re-bootstrapping); add a "regenerate
+    password" admin action before wider use.
 
 ---
 
 ## 4. Data Fetching / State
 
+> **AS-BUILT DEVIATION (F2, reviewed):** mutations use **client-component
+> `fetch` through a Next rewrite proxy** (`/api/:path*` → FastAPI, the only
+> rewrite rule) instead of Server Actions. Why: FastAPI sets the session
+> cookie, and the rewrite keeps browser and server traffic on a single
+> origin, so the cookie set at login just works everywhere — no per-action
+> cookie re-plumbing that Server Actions would have required. Verified: the
+> Set-Cookie header passes through the proxy byte-identical (HttpOnly /
+> SameSite=lax / Path=/ preserved; no Secure attribute — plain-HTTP localhost
+> tool; adding Secure is an HTTPS-deployment prerequisite, listed in the F5
+> follow-ons). Everything else in this section stands as planned: reads in
+> Server Components (cookie-forwarding `serverApi`), mutations followed by
+> `router.refresh()`, no client cache library, and **no optimistic UI
+> anywhere**.
+
 **Server Components for reads + Server Actions for mutations, no client
-cache library.** Reasoning rather than default:
+cache library.** Original reasoning (mutation mechanism superseded above):
 
 - Every page's data is one or two API reads rendered as tables/cards.
   Server Components fetch from FastAPI at request time; there is no client
