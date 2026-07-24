@@ -12,6 +12,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Badge, Button, inputCls, statusTone } from "@/components/ui";
 import type { ReviewItem } from "@/lib/api";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -22,7 +23,7 @@ const STAGE_LABELS: Record<string, string> = {
 
 function Payload({ payload }: { payload: Record<string, unknown> }) {
   return (
-    <pre className="max-h-64 overflow-auto rounded bg-slate-50 p-2 text-[11px] leading-4">
+    <pre className="max-h-64 overflow-auto rounded-md bg-slate-50 p-2 text-[11px] leading-4 text-slate-700">
       {JSON.stringify(payload, null, 2)}
     </pre>
   );
@@ -112,67 +113,64 @@ export function ItemCard({ item, canResolve }: {
   }
 
   const decisionButtons = canResolve && open && (
-    <div className="flex items-center gap-2 pt-2">
+    <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
       {item.tier === 3 && (
         <input
           value={confirmTitle}
           onChange={(e) => setConfirmTitle(e.target.value)}
           placeholder={`Retype "${tier3Title}" to sign off`}
-          className="w-64 rounded border px-2 py-1.5 text-xs"
+          className={`${inputCls} w-64 px-2 py-1.5 text-xs`}
         />
       )}
-      <button
+      {/* Approve and Reject share the same secondary variant — equal weight */}
+      <Button
+        variant="secondary"
+        small
         onClick={() => resolve("approved")}
         disabled={busy !== null || !tier3Unlocked}
-        className="rounded border border-slate-400 px-4 py-1.5 text-xs font-medium hover:bg-slate-100 disabled:opacity-40"
       >
         {busy === "approved" ? "…" : item.tier === 3 ? "Sign off" : "Approve"}
-      </button>
-      <button
+      </Button>
+      <Button
+        variant="secondary"
+        small
         onClick={() => resolve("rejected")}
         disabled={busy !== null}
-        className="rounded border border-slate-400 px-4 py-1.5 text-xs font-medium hover:bg-slate-100 disabled:opacity-40"
       >
         {busy === "rejected" ? "…" : "Reject"}
-      </button>
+      </Button>
       <input
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         placeholder="notes (optional)"
-        className="flex-1 rounded border px-2 py-1.5 text-xs"
+        className={`${inputCls} flex-1 px-2 py-1.5 text-xs`}
       />
     </div>
   );
 
   return (
-    <article className="rounded border bg-white p-4 text-sm">
-      <header className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-        <span className="rounded bg-slate-800 px-2 py-0.5 text-white">
+    <article className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm">
+      <header className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 font-medium text-white">
           T{item.tier} · {item.item_type}
         </span>
         <span className="text-slate-400">
           #{item.item_id} · {item.created_by_skill} · {item.created_at}
         </span>
-        <span className={`rounded px-2 py-0.5 ${
-          item.status === "approved" ? "bg-emerald-100 text-emerald-800"
-          : item.status === "rejected" ? "bg-slate-200 text-slate-600"
-          : item.status === "paused" ? "bg-red-100 text-red-800"
-          : "bg-amber-100 text-amber-800"
-        }`}>
-          {item.status}
-        </span>
+        <Badge tone={statusTone(item.status)}>{item.status}</Badge>
         {/* OQ-2: ALWAYS visible when cost data is incomplete — never behind a click */}
         {p.cost_data_complete === false && (
-          <span className="rounded bg-red-600 px-2 py-0.5 font-semibold text-white">
+          <span className="inline-flex items-center rounded-full bg-red-600 px-2 py-0.5 font-semibold text-white">
             COST DATA INCOMPLETE — CV understated
           </span>
         )}
         {item.escalation_stages.map((s) => (
           <span key={s.stage}
                 title={s.reason}
-                className={`rounded border px-1.5 py-0.5 ${
+                className={`inline-flex items-center rounded-full border px-2 py-0.5 ${
                   s.stage === "work_paused"
-                    ? "border-red-300 text-red-700" : "text-slate-500"
+                    ? "border-red-300 text-red-700"
+                    : "border-slate-200 text-slate-500"
                 }`}>
             {STAGE_LABELS[s.stage] ?? s.stage}
           </span>
@@ -187,7 +185,7 @@ export function ItemCard({ item, canResolve }: {
             onChange={(e) => setText(e.target.value)}
             rows={Math.min(16, Math.max(6, text.split("\n").length + 1))}
             readOnly={!canResolve || !open}
-            className="w-full rounded border p-2 font-mono text-xs"
+            className={`${inputCls} font-mono text-xs`}
           />
           {text !== draft && (
             <p className="text-xs text-amber-700">
@@ -196,7 +194,7 @@ export function ItemCard({ item, canResolve }: {
           )}
           {p.data_basis != null && (
             <details>
-              <summary className="cursor-pointer text-xs text-slate-500">
+              <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-700">
                 Data basis (trace every claim)
               </summary>
               <Payload payload={p.data_basis as Record<string, unknown>} />
@@ -204,10 +202,10 @@ export function ItemCard({ item, canResolve }: {
           )}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 text-slate-700">
           <Tier1Summary item={item} />
           <details>
-            <summary className="cursor-pointer text-xs text-slate-500">
+            <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-700">
               {item.item_type === "off_track_alert"
                 ? "Full EVM snapshot (PV / EV / AC)"
                 : "Raw payload"}
@@ -217,10 +215,10 @@ export function ItemCard({ item, canResolve }: {
         </div>
       )}
 
-      {error && <p className="pt-2 text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600">{error}</p>}
       {decisionButtons}
       {!open && item.reviewer_notes && (
-        <p className="pt-2 text-xs text-slate-500">notes: {item.reviewer_notes}</p>
+        <p className="text-xs text-slate-500">notes: {item.reviewer_notes}</p>
       )}
     </article>
   );

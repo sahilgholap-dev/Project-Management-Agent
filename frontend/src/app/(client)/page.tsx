@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { CreateProjectForm } from "@/components/CreateProjectForm";
+import { Badge, Card, EmptyState, PageHeader, statusTone, Table, Td, TdLink } from "@/components/ui";
 import { ProjectSummary, requireClientUser, serverApi } from "@/lib/api";
 
 export default async function ProjectListPage() {
@@ -7,45 +7,33 @@ export default async function ProjectListPage() {
   const projects = await serverApi<ProjectSummary[]>("/projects");
 
   return (
-    <main className="space-y-8">
-      <section>
-        <h1 className="mb-3 text-lg font-semibold">Projects</h1>
-        {projects.length === 0 && (
-          <p className="text-sm text-slate-500">No projects yet.</p>
-        )}
-        <ul className="space-y-2">
-          {projects.map((p) => (
-            <li key={p.project_id}
-                className="flex items-center justify-between rounded border bg-white px-4 py-3">
-              <div>
-                <Link href={`/projects/${p.project_id}`}
-                      className="font-medium hover:underline">
-                  {p.name}
-                </Link>
-                <span className="ml-3 text-xs text-slate-500">
+    <>
+      <PageHeader title="Projects" />
+      <div className="space-y-6">
+        {projects.length === 0 ? (
+          <EmptyState>No projects yet.</EmptyState>
+        ) : (
+          <Table headers={["Project", "Timeline", "Status"]}>
+            {projects.map((p) => (
+              <tr key={p.project_id} className="hover:bg-slate-50">
+                <TdLink href={`/projects/${p.project_id}`}>{p.name}</TdLink>
+                <Td className="text-slate-500">
                   {p.timeline_start} → {p.timeline_end}
-                </span>
-              </div>
-              <span className={`rounded px-2 py-0.5 text-xs ${
-                p.status === "paused"
-                  ? "bg-red-100 text-red-800"
-                  : p.status === "archived"
-                    ? "bg-slate-200 text-slate-600"
-                    : "bg-emerald-100 text-emerald-800"
-              }`}>
-                {p.status}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
+                </Td>
+                <Td>
+                  <Badge tone={statusTone(p.status)}>{p.status}</Badge>
+                </Td>
+              </tr>
+            ))}
+          </Table>
+        )}
 
-      {me.role === "client_admin" && (
-        <section className="rounded border bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold">New project</h2>
-          <CreateProjectForm />
-        </section>
-      )}
-    </main>
+        {me.role === "client_admin" && (
+          <Card title="New project">
+            <CreateProjectForm />
+          </Card>
+        )}
+      </div>
+    </>
   );
 }

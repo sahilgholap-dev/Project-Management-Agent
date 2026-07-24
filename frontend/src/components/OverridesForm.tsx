@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Alert, Button, inputCls } from "@/components/ui";
 
 export function OverridesForm({ projectId, initial }: {
   projectId: number;
@@ -43,17 +44,16 @@ export function OverridesForm({ projectId, initial }: {
   return (
     <div className="space-y-2 text-sm">
       <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8}
-                className="w-full rounded border p-2 font-mono text-xs" />
+                className={`${inputCls} font-mono text-xs`} />
       <p className="text-xs text-slate-500">
         Any client_config key is overridable. Remove a key to fall back to the
         client default (null overrides are rejected as ambiguous).
       </p>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <Alert tone="danger">{error}</Alert>}
       <div className="flex items-center gap-3">
-        <button onClick={save} disabled={busy}
-                className="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50">
+        <Button onClick={save} disabled={busy}>
           {busy ? "Saving…" : "Save overrides"}
-        </button>
+        </Button>
         {message && <span className="text-xs text-emerald-700">{message}</span>}
       </div>
     </div>

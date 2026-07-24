@@ -5,6 +5,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui";
 
 export function RefreshBar() {
   const router = useRouter();
@@ -15,15 +16,16 @@ export function RefreshBar() {
   return (
     <div className="flex items-center gap-2 text-xs text-slate-500">
       <span>{last ? `last refreshed ${last}` : " "}</span>
-      <button
-        className="rounded border px-3 py-1.5 hover:bg-slate-100"
+      <Button
+        variant="secondary"
+        small
         onClick={() => {
           router.refresh();
           setLast(new Date().toLocaleTimeString());
         }}
       >
         Refresh
-      </button>
+      </Button>
     </div>
   );
 }

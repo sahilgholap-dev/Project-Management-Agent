@@ -6,6 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/ui";
 
 async function post(path: string, body?: unknown): Promise<string | null> {
   const response = await fetch(`/api${path}`, {
@@ -39,41 +40,37 @@ export function ProjectActions({ projectId, status, hasPlan }: {
     router.refresh();
   }
 
-  const button =
-    "rounded border px-3 py-1.5 text-xs hover:bg-slate-100 disabled:opacity-50";
-
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <label className="text-xs text-slate-500">
+        <label className="text-xs font-medium text-slate-600">
           as-of{" "}
           <input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)}
-                 className="rounded border px-2 py-1 text-xs" />
-          <span className="ml-1 italic">(simulation date — testing only)</span>
+                 className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:border-indigo-500 focus:outline-2 focus:outline-indigo-200" />
+          <span className="ml-1 italic text-slate-500">(simulation date — testing only)</span>
         </label>
         {!hasPlan && (
-          <button className={button} disabled={busy !== null}
+          <Button variant="secondary" small disabled={busy !== null}
                   onClick={() => run("Onboard", `/projects/${projectId}/onboard`,
                                      { as_of: asOf })}>
             {busy === "Onboard" ? "Onboarding…" : "Onboard (breakdown → schedule → assign)"}
-          </button>
+          </Button>
         )}
-        <button className={button} disabled={busy !== null}
+        <Button variant="secondary" small disabled={busy !== null}
                 onClick={() => run("Cycle", `/projects/${projectId}/cycle`,
                                    { as_of: asOf, draft_comms: null })}>
           {busy === "Cycle" ? "Running…" : "Run monitoring cycle"}
-        </button>
-        <button className={button} disabled={busy !== null}
+        </Button>
+        <Button variant="secondary" small disabled={busy !== null}
                 onClick={() => run("Cycle+comms", `/projects/${projectId}/cycle`,
                                    { as_of: asOf, draft_comms: true })}>
           Cycle + ad-hoc comms draft
-        </button>
+        </Button>
         {status === "paused" && (
-          <button className={`${button} border-red-300 text-red-700`}
-                  disabled={busy !== null}
+          <Button variant="danger" small disabled={busy !== null}
                   onClick={() => run("Resume", `/projects/${projectId}/resume`)}>
             Resume project
-          </button>
+          </Button>
         )}
       </div>
       {message && <p className="text-xs text-slate-600">{message}</p>}

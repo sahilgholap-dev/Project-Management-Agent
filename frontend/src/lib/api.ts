@@ -54,10 +54,47 @@ export async function requireClientUser(): Promise<Me> {
   const me = await serverApiOrNull<Me>("/auth/me");
   if (!me) redirect("/login");
   if (me.role === "platform_admin") redirect("/admin");
+  if (me.role === "member") redirect("/my"); // members: My Work portal only
+  return me;
+}
+
+/** My Work pages call this FIRST — same race rationale as requireClientUser. */
+export async function requireMember(): Promise<Me> {
+  const me = await serverApiOrNull<Me>("/auth/me");
+  if (!me) redirect("/login");
+  if (me.role === "platform_admin") redirect("/admin");
+  if (me.role === "client_admin") redirect("/");
+  return me;
+}
+
+/** Admin pages call this FIRST, same race rationale as requireClientUser. */
+export async function requireAdmin(): Promise<Me> {
+  const me = await serverApiOrNull<Me>("/auth/me");
+  if (!me) redirect("/login");
+  if (me.role !== "platform_admin") redirect("/");
   return me;
 }
 
 // ---- shared row shapes used by the screens (trimmed views of api-types) ----
+
+export type Company = {
+  client_id: number;
+  name: string;
+  created_at: string;
+  user_count: number;
+  project_count: number;
+};
+
+export type AdminUser = {
+  user_id: number;
+  client_id: number;
+  client_name: string;
+  email: string;
+  display_name: string;
+  role: "client_admin" | "member";
+  invite_status: "invited" | "active" | "disabled";
+  created_at: string;
+};
 
 export type Me = {
   user_id: number;
@@ -113,6 +150,39 @@ export type ProjectDetail = ProjectSummary & {
   phases: Phase[];
   tasks: Task[];
   dependencies: { predecessor_task_id: number; successor_task_id: number }[];
+  /** Working days the computed finish overruns timeline_end; 0 = on time.
+   *  Slack is anchored to the computed finish, so lateness lives here. */
+  behind_working_days: number;
+};
+
+export type MyWork = {
+  linked: boolean;
+  member: {
+    member_id: number;
+    name: string;
+    role: string;
+    skill_tags: string[];
+    capacity_hrs: number;
+  } | null;
+  projects: {
+    project_id: number;
+    name: string;
+    status: string;
+    timeline_start: string | null;
+    timeline_end: string | null;
+    phases: Phase[];
+    tasks: Task[];
+  }[];
+  blockers: {
+    blocker_id: number;
+    project_id: number;
+    project_name: string;
+    description: string;
+    status: string;
+    assigned_to: number | null;
+    blocked_member_id: number | null;
+  }[];
+  pending_task_ids: number[];
 };
 
 export type ReviewItem = {

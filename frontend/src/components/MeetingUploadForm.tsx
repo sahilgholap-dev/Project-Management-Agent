@@ -6,6 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button, inputCls } from "@/components/ui";
 
 export function MeetingUploadForm({ projectId }: { projectId: number }) {
   const router = useRouter();
@@ -42,17 +43,16 @@ export function MeetingUploadForm({ projectId }: { projectId: number }) {
     <form action={submit} className="space-y-2 text-sm">
       <textarea name="raw_text" required rows={10}
                 placeholder="Paste the transcript or meeting notes…"
-                className="w-full rounded border px-3 py-2 font-mono text-xs" />
+                className={`${inputCls} font-mono text-xs`} />
       <div className="flex items-center gap-3">
-        <label className="text-xs text-slate-500">
+        <label className="text-xs font-medium text-slate-600">
           Meeting date{" "}
           <input name="meeting_date" type="date"
-                 className="rounded border px-2 py-1.5 text-sm text-slate-900" />
+                 className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-2 focus:outline-indigo-200" />
         </label>
-        <button disabled={busy}
-                className="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50">
+        <Button disabled={busy}>
           {busy ? "Extracting…" : "Upload & extract"}
-        </button>
+        </Button>
       </div>
       {message && <p className="text-xs text-slate-600">{message}</p>}
     </form>

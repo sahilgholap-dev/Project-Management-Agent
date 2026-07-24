@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusReportForm } from "@/components/StatusReportForm";
+import { Badge, Card, EmptyState, PageHeader, Table, Td } from "@/components/ui";
 import { ProjectDetail, requireClientUser, serverApi, serverApiOrNull } from "@/lib/api";
 
 type Report = {
@@ -36,19 +37,21 @@ export default async function StatusPage({ params }: {
   );
 
   return (
-    <main className="space-y-6">
-      <header>
-        <h1 className="text-lg font-semibold">
-          Status reports — {project.name}
-        </h1>
-        <p className="text-xs text-slate-500">
-          Manual inbox (v1 has no channel integrations by design).{" "}
-          <Link href={`/projects/${id}`} className="underline">back to dashboard</Link>
-        </p>
-      </header>
+    <div className="space-y-6">
+      <PageHeader
+        title={`Status reports — ${project.name}`}
+        description={
+          <>
+            Manual inbox (v1 has no channel integrations by design).{" "}
+            <Link href={`/projects/${id}`}
+                  className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline">
+              back to dashboard
+            </Link>
+          </>
+        }
+      />
 
-      <section className="rounded border bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold">New status reply</h2>
+      <Card title="New status reply">
         {openTasks.length === 0 ? (
           <p className="text-sm text-slate-500">No open tasks to report on.</p>
         ) : (
@@ -62,56 +65,42 @@ export default async function StatusPage({ params }: {
               .map((m) => ({ id: m.member_id, label: m.name }))}
           />
         )}
-      </section>
+      </Card>
 
-      <section className="rounded border bg-white">
-        <h2 className="border-b bg-slate-50 px-4 py-2 text-sm font-semibold">
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-slate-600">
           Inbox ({reports.length})
         </h2>
-        <table className="w-full text-left text-xs">
-          <thead className="text-slate-500">
-            <tr className="border-b">
-              <th className="px-4 py-2">Task</th>
-              <th className="px-2 py-2">Reply</th>
-              <th className="px-2 py-2">Parsed</th>
-              <th className="px-2 py-2">Received</th>
-              <th className="px-2 py-2">State</th>
-            </tr>
-          </thead>
-          <tbody>
+        {reports.length === 0 ? (
+          <EmptyState>No reports yet.</EmptyState>
+        ) : (
+          <Table headers={["Task", "Reply", "Parsed", "Received", "State"]}>
             {reports.map((r) => (
-              <tr key={r.report_id} className="border-b align-top last:border-0">
-                <td className="px-4 py-2">{r.task_title}</td>
-                <td className="max-w-md px-2 py-2">{r.raw_text}</td>
-                <td className="px-2 py-2">
+              <tr key={r.report_id} className="align-top">
+                <Td className="align-top">{r.task_title}</Td>
+                <Td className="max-w-md align-top text-slate-700">{r.raw_text}</Td>
+                <Td className="align-top text-slate-700">
                   {r.parsed_status ?? "—"}
                   {r.parsed_percent_complete != null && ` · ${r.parsed_percent_complete}%`}
                   {r.parsed_hours_spent != null && ` · ${r.parsed_hours_spent}h spent`}
-                </td>
-                <td className="whitespace-nowrap px-2 py-2">{r.received_at}</td>
-                <td className="px-2 py-2">
+                </Td>
+                <Td className="whitespace-nowrap align-top text-slate-500">
+                  {r.received_at}
+                </Td>
+                <Td className="align-top">
                   {r.is_ambiguous ? (
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">
-                      ambiguous — flagged
-                    </span>
+                    <Badge tone="warning">ambiguous — flagged</Badge>
                   ) : r.processed_at ? (
-                    <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-800">
-                      processed {r.processed_at}
-                    </span>
+                    <Badge tone="success">processed {r.processed_at}</Badge>
                   ) : (
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5">
-                      queued for next cycle
-                    </span>
+                    <Badge tone="neutral">queued for next cycle</Badge>
                   )}
-                </td>
+                </Td>
               </tr>
             ))}
-          </tbody>
-        </table>
-        {reports.length === 0 && (
-          <p className="p-4 text-sm text-slate-500">No reports yet.</p>
+          </Table>
         )}
       </section>
-    </main>
+    </div>
   );
 }

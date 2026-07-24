@@ -7,6 +7,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/ui";
 
 export function CloseActions({ projectId, status, retroPending }: {
   projectId: number;
@@ -40,35 +41,32 @@ export function CloseActions({ projectId, status, retroPending }: {
     router.refresh();
   }
 
-  const button =
-    "rounded border px-3 py-1.5 text-xs hover:bg-slate-100 disabled:opacity-50";
-
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         {status !== "closed" && status !== "archived" && (
           <>
-            <label className="text-xs text-slate-500">
+            <label className="text-xs font-medium text-slate-600">
               as-of{" "}
               <input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)}
-                     className="rounded border px-2 py-1 text-xs" />
-              <span className="ml-1 italic">(simulation date — testing only)</span>
+                     className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:border-indigo-500 focus:outline-2 focus:outline-indigo-200" />
+              <span className="ml-1 italic text-slate-500">(simulation date — testing only)</span>
             </label>
-            <button className={button} disabled={busy !== null}
+            <Button variant="primary" small disabled={busy !== null}
                     onClick={() => post("generate", `/projects/${projectId}/close`,
                                         { as_of: asOf })}>
               {busy === "generate" ? "Drafting…" : "Generate retrospective & close"}
-            </button>
+            </Button>
           </>
         )}
         {status !== "archived" && (
-          <button className={button} disabled={busy !== null}
+          <Button variant="secondary" small disabled={busy !== null}
                   title={retroPending
                     ? "will be refused: the retrospective is not approved yet"
                     : undefined}
                   onClick={() => post("archive", `/projects/${projectId}/archive`)}>
             {busy === "archive" ? "Archiving…" : "Archive project"}
-          </button>
+          </Button>
         )}
       </div>
       {message && <p className="text-xs text-slate-600">{message}</p>}

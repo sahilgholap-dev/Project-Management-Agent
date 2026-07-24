@@ -5,6 +5,13 @@ import type { NextConfig } from "next";
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
+  // Onboarding and monitoring cycles make several sequential LLM calls and
+  // can run for minutes; the dev proxy's default ~30s timeout would cut the
+  // socket (ECONNRESET) while FastAPI keeps working. 10 minutes covers the
+  // slowest real onboarding run.
+  experimental: {
+    proxyTimeout: 600_000,
+  },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${API_URL}/:path*` }];
   },

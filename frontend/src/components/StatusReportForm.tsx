@@ -6,6 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button, inputCls } from "@/components/ui";
 
 type Option = { id: number; label: string };
 
@@ -42,13 +43,13 @@ export function StatusReportForm({ tasks, members }: {
   return (
     <form action={submit} className="space-y-2 text-sm">
       <div className="flex gap-2">
-        <select name="task_id" required className="flex-1 rounded border px-2 py-2">
+        <select name="task_id" required className={`${inputCls} flex-1`}>
           <option value="">Task…</option>
           {tasks.map((t) => (
             <option key={t.id} value={t.id}>{t.label}</option>
           ))}
         </select>
-        <select name="member_id" required className="w-48 rounded border px-2 py-2">
+        <select name="member_id" required className={`${inputCls} w-48`}>
           <option value="">Reporting member…</option>
           {members.map((m) => (
             <option key={m.id} value={m.id}>{m.label}</option>
@@ -57,12 +58,11 @@ export function StatusReportForm({ tasks, members }: {
       </div>
       <textarea name="raw_text" required rows={3}
                 placeholder='Free-text reply, e.g. "about half done, 12h in so far"'
-                className="w-full rounded border px-3 py-2" />
+                className={inputCls} />
       <div className="flex items-center gap-3">
-        <button disabled={busy}
-                className="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50">
+        <Button disabled={busy}>
           {busy ? "Submitting…" : "Submit status reply"}
-        </button>
+        </Button>
         {message && <span className="text-xs text-slate-600">{message}</span>}
       </div>
     </form>

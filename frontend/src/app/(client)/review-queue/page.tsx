@@ -1,5 +1,6 @@
 import { ItemCard } from "@/components/ItemCard";
 import { RefreshBar } from "@/components/RefreshBar";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { ReviewItem, requireClientUser, serverApi } from "@/lib/api";
 
 const TIER_LABELS: Record<number, string> = {
@@ -26,67 +27,69 @@ export default async function ReviewQueuePage({ searchParams }: {
   for (const item of items) byTier.get(item.tier)?.push(item);
 
   return (
-    <main className="space-y-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">
-          Review queue
-          <span className="ml-2 text-sm font-normal text-slate-500">
+    <>
+      <PageHeader
+        title="Review queue"
+        description={
+          <>
             {items.length} {status} item{items.length === 1 ? "" : "s"}
             {params.project_id ? ` · project ${params.project_id}` : " · all projects"}
-          </span>
-        </h1>
-        <RefreshBar />
-      </header>
-
-      {([1, 2, 3] as const).map((tier) => {
-        const tierItems = byTier.get(tier) ?? [];
-        if (tierItems.length === 0) return null;
-
-        const clarifications = tier === 1
-          ? tierItems.filter((i) => i.item_type === "clarification")
-          : [];
-        const rest = tierItems.filter((i) => !clarifications.includes(i));
-        const clusters = new Map<string, ReviewItem[]>();
-        for (const c of clarifications) {
-          const list = clusters.get(c.created_by_skill) ?? [];
-          list.push(c);
-          clusters.set(c.created_by_skill, list);
+          </>
         }
+        actions={<RefreshBar />}
+      />
+      <div className="space-y-6">
+        {([1, 2, 3] as const).map((tier) => {
+          const tierItems = byTier.get(tier) ?? [];
+          if (tierItems.length === 0) return null;
 
-        return (
-          <section key={tier} className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-600">
-              {TIER_LABELS[tier]}
-            </h2>
-            {rest.map((item) => (
-              <ItemCard key={item.item_id} item={item} canResolve={canResolve} />
-            ))}
-            {[...clusters.entries()].map(([skill, group]) => (
-              <details key={skill} className="rounded border bg-white">
-                <summary className="cursor-pointer px-4 py-2 text-sm">
-                  {group.length} clarification{group.length === 1 ? "" : "s"} from{" "}
-                  <code className="rounded bg-slate-100 px-1">{skill}</code>
-                  <span className="ml-2 text-xs text-slate-500">
-                    (resolved individually — there is no batch approve)
-                  </span>
-                </summary>
-                <div className="space-y-2 border-t p-3">
-                  {group.map((item) => (
-                    <ItemCard key={item.item_id} item={item} canResolve={canResolve} />
-                  ))}
-                </div>
-              </details>
-            ))}
-          </section>
-        );
-      })}
+          const clarifications = tier === 1
+            ? tierItems.filter((i) => i.item_type === "clarification")
+            : [];
+          const rest = tierItems.filter((i) => !clarifications.includes(i));
+          const clusters = new Map<string, ReviewItem[]>();
+          for (const c of clarifications) {
+            const list = clusters.get(c.created_by_skill) ?? [];
+            list.push(c);
+            clusters.set(c.created_by_skill, list);
+          }
 
-      {items.length === 0 && (
-        <p className="rounded border bg-white p-6 text-sm text-slate-500">
-          Nothing {status}. Trigger a monitoring cycle or onboard a project to
-          exercise the skills.
-        </p>
-      )}
-    </main>
+          return (
+            <section key={tier} className="space-y-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {TIER_LABELS[tier]}
+              </h2>
+              {rest.map((item) => (
+                <ItemCard key={item.item_id} item={item} canResolve={canResolve} />
+              ))}
+              {[...clusters.entries()].map(([skill, group]) => (
+                <details key={skill}
+                         className="rounded-lg border border-slate-200 bg-white shadow-sm">
+                  <summary className="cursor-pointer px-5 py-3 text-sm text-slate-700 hover:bg-slate-50">
+                    {group.length} clarification{group.length === 1 ? "" : "s"} from{" "}
+                    <code className="rounded bg-slate-100 px-1">{skill}</code>
+                    <span className="ml-2 text-xs text-slate-500">
+                      (resolved individually — there is no batch approve)
+                    </span>
+                  </summary>
+                  <div className="space-y-3 border-t border-slate-100 p-4">
+                    {group.map((item) => (
+                      <ItemCard key={item.item_id} item={item} canResolve={canResolve} />
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </section>
+          );
+        })}
+
+        {items.length === 0 && (
+          <EmptyState>
+            Nothing {status}. Trigger a monitoring cycle or onboard a project to
+            exercise the skills.
+          </EmptyState>
+        )}
+      </div>
+    </>
   );
 }

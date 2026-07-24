@@ -25,21 +25,29 @@ export default function LoginPage() {
       return;
     }
     const me = await response.json();
-    router.replace(me.role === "platform_admin" ? "/admin" : "/");
+    router.replace(me.role === "platform_admin" ? "/admin"
+      : me.role === "member" ? "/my" : "/");
     router.refresh();
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <form action={submit} className="w-80 space-y-4 rounded border bg-white p-6 shadow-sm">
-        <h1 className="text-lg font-semibold">NEXUS PM Agent</h1>
-        <input name="email" type="email" required placeholder="Email"
-               className="w-full rounded border px-3 py-2 text-sm" />
+    <main className="flex min-h-screen items-center justify-center bg-slate-100">
+      <form action={submit}
+            className="w-88 space-y-4 rounded-xl border border-slate-200 bg-white p-8 shadow-md">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+            NEXUS <span className="text-indigo-600">PM</span>
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">Sign in to your portal</p>
+        </div>
+        <input name="email" type="email" required placeholder="Email" autoComplete="email"
+               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-2 focus:outline-indigo-200" />
         <input name="password" type="password" required placeholder="Password"
-               className="w-full rounded border px-3 py-2 text-sm" />
+               autoComplete="current-password"
+               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-2 focus:outline-indigo-200" />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button disabled={busy}
-                className="w-full rounded bg-slate-800 px-3 py-2 text-sm text-white disabled:opacity-50">
+                className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:bg-indigo-300">
           {busy ? "Signing in…" : "Sign in"}
         </button>
       </form>

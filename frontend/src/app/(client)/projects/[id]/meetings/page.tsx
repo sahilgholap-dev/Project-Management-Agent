@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MeetingUploadForm } from "@/components/MeetingUploadForm";
+import { Alert, Card, EmptyState, PageHeader } from "@/components/ui";
 import { ProjectDetail, requireClientUser, serverApi, serverApiOrNull } from "@/lib/api";
 
 type Meeting = {
@@ -34,26 +35,28 @@ export default async function MeetingsPage({ params }: {
   const unowned = blockers.filter((b) => b.assigned_to === null && b.status === "open");
 
   return (
-    <main className="space-y-6">
-      <header>
-        <h1 className="text-lg font-semibold">Meetings — {project.name}</h1>
-        <p className="text-xs text-slate-500">
-          Per-project upload (multi-project transcripts are out of scope in v1).{" "}
-          <Link href={`/projects/${id}`} className="underline">back to dashboard</Link>
-        </p>
-      </header>
+    <div className="space-y-6">
+      <PageHeader
+        title={`Meetings — ${project.name}`}
+        description={
+          <>
+            Per-project upload (multi-project transcripts are out of scope in v1).{" "}
+            <Link href={`/projects/${id}`}
+                  className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline">
+              back to dashboard
+            </Link>
+          </>
+        }
+      />
 
-      <section className="rounded border bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold">Upload transcript / notes</h2>
+      <Card title="Upload transcript / notes">
         <MeetingUploadForm projectId={project.project_id} />
-      </section>
+      </Card>
 
       {unowned.length > 0 && (
-        <section className="rounded border border-amber-300 bg-amber-50 p-4 text-sm">
-          <h2 className="mb-1 font-semibold text-amber-900">
-            {unowned.length} blocker(s) with no resolution owner
-          </h2>
-          <ul className="list-disc pl-5 text-amber-900">
+        <Alert tone="warning"
+               title={`${unowned.length} blocker(s) with no resolution owner`}>
+          <ul className="list-disc pl-5">
             {unowned.map((b) => (
               <li key={b.blocker_id}>
                 {b.description}
@@ -61,11 +64,11 @@ export default async function MeetingsPage({ params }: {
               </li>
             ))}
           </ul>
-          <p className="mt-1 text-xs text-amber-800">
+          <p className="mt-1">
             Each is flagged in the review queue; assign owners from the blockers
             view (F4) or via the API until then.
           </p>
-        </section>
+        </Alert>
       )}
 
       <section className="space-y-3">
@@ -73,14 +76,15 @@ export default async function MeetingsPage({ params }: {
           Uploaded meetings ({meetings.length})
         </h2>
         {meetings.map((m) => (
-          <article key={m.meeting_id} className="rounded border bg-white p-4 text-sm">
+          <article key={m.meeting_id}
+                   className="rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm">
             <header className="mb-2 text-xs text-slate-500">
               #{m.meeting_id} · {m.meeting_date ?? "no date"} · uploaded {m.created_at}
             </header>
             {m.decisions.length === 0 ? (
               <p className="text-xs text-slate-500">No decisions extracted.</p>
             ) : (
-              <ul className="list-disc pl-5">
+              <ul className="list-disc pl-5 text-slate-700">
                 {m.decisions.map((d, i) => (
                   <li key={i}>
                     {d.decision}
@@ -94,11 +98,9 @@ export default async function MeetingsPage({ params }: {
           </article>
         ))}
         {meetings.length === 0 && (
-          <p className="rounded border bg-white p-4 text-sm text-slate-500">
-            No meetings uploaded yet.
-          </p>
+          <EmptyState>No meetings uploaded yet.</EmptyState>
         )}
       </section>
-    </main>
+    </div>
   );
 }

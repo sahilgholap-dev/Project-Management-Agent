@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button, Field, inputCls } from "@/components/ui";
 
 export function CreateProjectForm() {
   const router = useRouter();
@@ -35,34 +36,30 @@ export function CreateProjectForm() {
   }
 
   return (
-    <form action={submit} className="space-y-3 text-sm">
-      <input name="name" required placeholder="Project name"
-             className="w-full rounded border px-3 py-2" />
-      <textarea name="scope_document" required rows={6}
-                placeholder="Scope document (plain text, v1)"
-                className="w-full rounded border px-3 py-2 font-mono text-xs" />
+    <form action={submit} className="space-y-4 text-sm">
+      <Field label="Project name">
+        <input name="name" required placeholder="Project name" className={inputCls} />
+      </Field>
+      <Field label="Scope document">
+        <textarea name="scope_document" required rows={6}
+                  placeholder="Scope document (plain text, v1)"
+                  className={`${inputCls} font-mono text-xs`} />
+      </Field>
       <div className="flex gap-3">
-        <label className="flex-1 text-xs text-slate-500">
-          Timeline start
-          <input name="timeline_start" type="date" required
-                 className="mt-1 w-full rounded border px-2 py-1.5 text-sm text-slate-900" />
-        </label>
-        <label className="flex-1 text-xs text-slate-500">
-          Timeline end
-          <input name="timeline_end" type="date" required
-                 className="mt-1 w-full rounded border px-2 py-1.5 text-sm text-slate-900" />
-        </label>
-        <label className="flex-1 text-xs text-slate-500">
-          Budget (optional)
-          <input name="budget_total" type="number" min="0"
-                 className="mt-1 w-full rounded border px-2 py-1.5 text-sm text-slate-900" />
-        </label>
+        <Field label="Timeline start" className="flex-1">
+          <input name="timeline_start" type="date" required className={inputCls} />
+        </Field>
+        <Field label="Timeline end" className="flex-1">
+          <input name="timeline_end" type="date" required className={inputCls} />
+        </Field>
+        <Field label="Budget (optional)" className="flex-1">
+          <input name="budget_total" type="number" min="0" className={inputCls} />
+        </Field>
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
-      <button disabled={busy}
-              className="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50">
+      <Button disabled={busy}>
         {busy ? "Creating…" : "Create project"}
-      </button>
+      </Button>
     </form>
   );
 }

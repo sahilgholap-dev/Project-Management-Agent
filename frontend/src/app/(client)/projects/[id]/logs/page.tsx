@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { EmptyState, PageHeader, Table, Td } from "@/components/ui";
 import { ProjectDetail, requireClientUser, serverApi, serverApiOrNull } from "@/lib/api";
 
 type EscalationEntry = {
@@ -34,85 +35,67 @@ export default async function LogsPage({ params }: {
   ]);
 
   return (
-    <main className="space-y-6">
-      <header>
-        <h1 className="text-lg font-semibold">Logs — {project.name}</h1>
-        <p className="text-xs text-slate-500">
-          Read-only, for verifying system behavior during testing (PRD s13).{" "}
-          <Link href={`/projects/${id}`} className="underline">back to dashboard</Link>
-        </p>
-      </header>
+    <div className="space-y-6">
+      <PageHeader
+        title={`Logs — ${project.name}`}
+        description={
+          <>
+            Read-only, for verifying system behavior during testing (PRD s13).{" "}
+            <Link href={`/projects/${id}`}
+                  className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline">
+              back to dashboard
+            </Link>
+          </>
+        }
+      />
 
-      <section className="rounded border bg-white">
-        <h2 className="border-b bg-slate-50 px-4 py-2 text-sm font-semibold">
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-slate-600">
           Escalation log ({escalations.length})
         </h2>
-        <table className="w-full text-left text-xs">
-          <thead className="text-slate-500">
-            <tr className="border-b">
-              <th className="px-4 py-2">When</th>
-              <th className="px-2 py-2">Item</th>
-              <th className="px-2 py-2">Stage</th>
-              <th className="px-2 py-2">Reason</th>
-              <th className="px-2 py-2">Outcome</th>
-            </tr>
-          </thead>
-          <tbody>
+        {escalations.length === 0 ? (
+          <EmptyState>No escalations recorded.</EmptyState>
+        ) : (
+          <Table headers={["When", "Item", "Stage", "Reason", "Outcome"]}>
             {escalations.map((e) => (
               <tr key={e.escalation_id}
-                  className={`border-b last:border-0 ${
-                    e.stage === "work_paused" ? "bg-red-50" : ""
-                  }`}>
-                <td className="whitespace-nowrap px-4 py-1.5">{e.occurred_at}</td>
-                <td className="px-2 py-1.5">#{e.item_id}</td>
-                <td className="px-2 py-1.5 font-medium">{e.stage}</td>
-                <td className="px-2 py-1.5">{e.reason}</td>
-                <td className="px-2 py-1.5">{e.outcome ?? "—"}</td>
+                  className={e.stage === "work_paused" ? "bg-red-50" : ""}>
+                <Td className="whitespace-nowrap text-slate-500">{e.occurred_at}</Td>
+                <Td>#{e.item_id}</Td>
+                <Td className="font-medium text-slate-900">{e.stage}</Td>
+                <Td className="text-slate-700">{e.reason}</Td>
+                <Td className="text-slate-700">{e.outcome ?? "—"}</Td>
               </tr>
             ))}
-          </tbody>
-        </table>
-        {escalations.length === 0 && (
-          <p className="p-4 text-sm text-slate-500">No escalations recorded.</p>
+          </Table>
         )}
       </section>
 
-      <section className="rounded border bg-white">
-        <h2 className="border-b bg-slate-50 px-4 py-2 text-sm font-semibold">
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-slate-600">
           Audit log (latest {audit.length})
         </h2>
-        <table className="w-full text-left text-xs">
-          <thead className="text-slate-500">
-            <tr className="border-b">
-              <th className="px-4 py-2">When</th>
-              <th className="px-2 py-2">Skill</th>
-              <th className="px-2 py-2">Action</th>
-              <th className="px-2 py-2">Actor</th>
-              <th className="px-2 py-2">Summary</th>
+        <Table headers={["When", "Skill", "Action", "Actor", "Summary"]}>
+          {audit.map((a) => (
+            <tr key={a.audit_id} className="align-top">
+              <Td className="whitespace-nowrap align-top text-slate-500">{a.occurred_at}</Td>
+              <Td className="align-top">{a.skill}</Td>
+              <Td className="align-top">{a.action}</Td>
+              <Td className="align-top">
+                {a.actor === "agent" ? (
+                  <span className="text-slate-400">agent</span>
+                ) : (
+                  <span className="font-medium">user {a.actor}</span>
+                )}
+              </Td>
+              <Td className="max-w-md align-top font-mono text-[10px] text-slate-600">
+                {a.input_summary && <div>in: {a.input_summary}</div>}
+                {a.output_summary && <div>out: {a.output_summary}</div>}
+              </Td>
             </tr>
-          </thead>
-          <tbody>
-            {audit.map((a) => (
-              <tr key={a.audit_id} className="border-b align-top last:border-0">
-                <td className="whitespace-nowrap px-4 py-1.5">{a.occurred_at}</td>
-                <td className="px-2 py-1.5">{a.skill}</td>
-                <td className="px-2 py-1.5">{a.action}</td>
-                <td className="px-2 py-1.5">
-                  {a.actor === "agent" ? (
-                    <span className="text-slate-400">agent</span>
-                  ) : (
-                    <span className="font-medium">user {a.actor}</span>
-                  )}
-                </td>
-                <td className="max-w-md px-2 py-1.5 font-mono text-[10px]">
-                  {a.input_summary && <div>in: {a.input_summary}</div>}
-                  {a.output_summary && <div>out: {a.output_summary}</div>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          ))}
+        </Table>
       </section>
-    </main>
+    </div>
   );
 }

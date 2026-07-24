@@ -1,4 +1,5 @@
 import { ConfigForm, ConfigValue } from "@/components/ConfigForm";
+import { Card, PageHeader } from "@/components/ui";
 import { requireClientUser, serverApi, serverApiOrNull } from "@/lib/api";
 
 type UserRow = {
@@ -15,27 +16,29 @@ export default async function ConfigPage() {
   ]);
 
   return (
-    <main className="space-y-4">
-      <header>
-        <h1 className="text-lg font-semibold">Client configuration</h1>
-        <p className="text-xs text-slate-500">
-          Client-level defaults (PRD section 5). Any project may override any
-          value from its settings page; resolution is project-override first.
-          {!config && " No config saved yet — the form is seeded with defaults."}
-        </p>
-      </header>
+    <>
+      <PageHeader
+        title="Client configuration"
+        description={
+          <>
+            Client-level defaults (PRD section 5). Any project may override any
+            value from its settings page; resolution is project-override first.
+            {!config && " No config saved yet — the form is seeded with defaults."}
+          </>
+        }
+      />
       {me.role !== "client_admin" ? (
-        <p className="rounded border bg-white p-4 text-sm text-slate-500">
-          Read-only for members. Current config:{" "}
-          <pre className="mt-2 overflow-auto rounded bg-slate-50 p-2 text-xs">
+        <Card>
+          <p className="text-sm text-slate-500">Read-only for members. Current config:</p>
+          <pre className="mt-2 overflow-auto rounded-md bg-slate-50 p-3 text-xs text-slate-700">
             {JSON.stringify(config, null, 2)}
           </pre>
-        </p>
+        </Card>
       ) : (
-        <div className="rounded border bg-white p-4">
+        <Card>
           <ConfigForm initial={config} users={users} />
-        </div>
+        </Card>
       )}
-    </main>
+    </>
   );
 }
