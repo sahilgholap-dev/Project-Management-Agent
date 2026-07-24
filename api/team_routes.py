@@ -14,7 +14,7 @@ from api.deps import Conn, User, require_role
 router = APIRouter(tags=["team"])
 
 CLIENT_WRITE = require_role("client_admin")
-CLIENT_READ = require_role("client_admin", "member")
+CLIENT_READ = require_role("client_admin")  # members: My Work portal only
 
 
 class MemberBody(BaseModel):
@@ -30,6 +30,9 @@ class MemberPatch(BaseModel):
     skill_tags: list[str] | None = None
     capacity_hrs: float | None = None
     is_active: bool | None = None
+    # login link for the My Work portal: the user account this roster row
+    # belongs to. Explicit null unlinks; omitted = untouched.
+    user_id: int | None = None
 
 
 class StakeholderBody(BaseModel):
@@ -71,13 +74,33 @@ def create_member(body: MemberBody, conn: Conn, user: User) -> dict:
 
 
 @router.patch("/team-members/{member_id}", dependencies=[CLIENT_WRITE])
-def patch_member(member_id: int, body: MemberPatch, conn: Conn) -> dict:
+def patch_member(member_id: int, body: MemberPatch, conn: Conn, user: User) -> dict:
     row = conn.execute(
         "SELECT * FROM team_members WHERE member_id = ?", (member_id,)
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="no such member")
     updates, values = [], []
+    if "user_id" in body.model_fields_set:
+        if body.user_id is not None:
+            linked = conn.execute(
+                "SELECT 1 FROM users WHERE user_id = ? AND client_id = ?"
+                " AND role != 'platform_admin'",
+                (body.user_id, user["client_id"]),
+            ).fetchone()
+            if linked is None:
+                raise HTTPException(status_code=404,
+                                    detail="no such user in this company")
+            taken = conn.execute(
+                "SELECT name FROM team_members WHERE user_id = ? AND member_id != ?",
+                (body.user_id, member_id),
+            ).fetchone()
+            if taken:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"that login is already linked to {taken['name']}")
+        updates.append("user_id = ?")
+        values.append(body.user_id)
     for field in ("name", "role", "capacity_hrs"):
         value = getattr(body, field)
         if value is not None:

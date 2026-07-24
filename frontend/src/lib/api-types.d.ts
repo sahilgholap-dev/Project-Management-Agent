@@ -62,10 +62,51 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List Clients */
+        get: operations["list_clients_admin_clients_get"];
         put?: never;
         /** Create Client */
         post: operations["create_client_admin_clients_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/clients/{client_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Client
+         * @description Safe delete only: a company that has accumulated users or projects is
+         *     part of the governance record and cannot be removed.
+         */
+        delete: operations["delete_client_admin_clients__client_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Client */
+        patch: operations["rename_client_admin_clients__client_id__patch"];
+        trace?: never;
+    };
+    "/admin/clients/{client_id}/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Client Config */
+        get: operations["get_client_config_admin_clients__client_id__config_get"];
+        /** Put Client Config */
+        put: operations["put_client_config_admin_clients__client_id__config_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -79,10 +120,74 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List All Users
+         * @description Every non-bootstrap user across all companies, with the company name
+         *     joined in for the admin table. No credentials exposed.
+         */
+        get: operations["list_all_users_admin_users_get"];
         put?: never;
         /** Create User */
         post: operations["create_user_admin_users_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update User */
+        patch: operations["update_user_admin_users__user_id__patch"];
+        trace?: never;
+    };
+    "/admin/users/{user_id}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Password
+         * @description Regenerates credentials and returns the plaintext EXACTLY ONCE — the
+         *     same handoff rule as creation. Old password stops working immediately.
+         */
+        post: operations["reset_password_admin_users__user_id__reset_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Users
+         * @description Client-scoped user list (id/name/role) so the config screen can offer
+         *     reviewer/approver selects. Plain read — no credentials exposed.
+         */
+        get: operations["list_users_users_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -96,7 +201,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Config */
+        /**
+         * Get Config
+         * @description 404 when no config row exists yet — 'not saved yet' is not a defect;
+         *     422-with-defects is reserved for rejected SAVES.
+         */
         get: operations["get_config_config_get"];
         /** Put Config */
         put: operations["put_config_config_put"];
@@ -138,6 +247,23 @@ export interface paths {
          *     (required-missing-at-both-levels) surface as their defect text.
          */
         get: operations["get_resolved_config_projects__project_id__config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/work": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Work */
+        get: operations["my_work_me_work_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -486,6 +612,10 @@ export interface paths {
          * Submit Status Report
          * @description The confirmed-Q7 manual inbox: the row is parsed by Status Tracking on
          *     the next monitoring cycle, not here.
+         *
+         *     Scoping: the task must belong to the caller's company, and a member may
+         *     only report AS THEMSELVES (their linked roster row) — client_admin can
+         *     file on anyone's behalf.
          */
         post: operations["submit_status_report_status_reports_post"];
         delete?: never;
@@ -731,6 +861,8 @@ export interface components {
             capacity_hrs?: number | null;
             /** Is Active */
             is_active?: boolean | null;
+            /** User Id */
+            user_id?: number | null;
         };
         /** ProjectBody */
         ProjectBody: {
@@ -796,12 +928,23 @@ export interface components {
         };
         /** UserBody */
         UserBody: {
+            /** Client Id */
+            client_id: number;
             /** Email */
             email: string;
             /** Display Name */
             display_name: string;
             /** Role */
             role: string;
+        };
+        /** UserPatch */
+        UserPatch: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Role */
+            role?: string | null;
+            /** Invite Status */
+            invite_status?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -904,6 +1047,28 @@ export interface operations {
             };
         };
     };
+    list_clients_admin_clients_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+        };
+    };
     create_client_admin_clients_post: {
         parameters: {
             query?: never;
@@ -939,6 +1104,166 @@ export interface operations {
             };
         };
     };
+    delete_client_admin_clients__client_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_client_admin_clients__client_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_client_config_admin_clients__client_id__config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_client_config_admin_clients__client_id__config_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_all_users_admin_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+        };
+    };
     create_user_admin_users_post: {
         parameters: {
             query?: never;
@@ -970,6 +1295,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_user_admin_users__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_password_admin_users__user_id__reset_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_users_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
                 };
             };
         };
@@ -1101,6 +1518,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_work_me_work_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

@@ -18,7 +18,7 @@ from src.governance.review_queue import resolve_item
 router = APIRouter(tags=["review"])
 
 RESOLVER = require_role("client_admin")
-CLIENT_READ = require_role("client_admin", "member")
+CLIENT_READ = require_role("client_admin")  # members: My Work portal only
 
 
 class ResolveBody(BaseModel):

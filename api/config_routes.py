@@ -13,7 +13,7 @@ from src import config_loader
 router = APIRouter(tags=["config"])
 
 CLIENT_WRITE = require_role("client_admin")
-CLIENT_READ = require_role("client_admin", "member")
+CLIENT_READ = require_role("client_admin")  # members: My Work portal only
 
 
 @router.get("/users", dependencies=[CLIENT_READ])

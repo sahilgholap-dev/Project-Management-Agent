@@ -1,1 +1,2750 @@
-{"openapi": "3.1.0", "info": {"title": "NEXUS PM Agent API", "version": "0.1.0"}, "paths": {"/auth/login": {"post": {"tags": ["auth"], "summary": "Login", "operationId": "login_auth_login_post", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/LoginBody"}}}, "required": true}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Login Auth Login Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/auth/logout": {"post": {"tags": ["auth"], "summary": "Logout", "operationId": "logout_auth_logout_post", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Logout Auth Logout Post"}}}}}}}, "/auth/me": {"get": {"tags": ["auth"], "summary": "Me", "operationId": "me_auth_me_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Me Auth Me Get"}}}}}}}, "/admin/clients": {"post": {"tags": ["admin"], "summary": "Create Client", "operationId": "create_client_admin_clients_post", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ClientBody"}}}, "required": true}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Create Client Admin Clients Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/admin/users": {"post": {"tags": ["admin"], "summary": "Create User", "operationId": "create_user_admin_users_post", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserBody"}}}, "required": true}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Create User Admin Users Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/config": {"get": {"tags": ["config"], "summary": "Get Config", "operationId": "get_config_config_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Get Config Config Get"}}}}}}, "put": {"tags": ["config"], "summary": "Put Config", "operationId": "put_config_config_put", "requestBody": {"content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Body"}}}, "required": true}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Put Config Config Put"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/overrides": {"put": {"tags": ["config"], "summary": "Put Overrides", "operationId": "put_overrides_projects__project_id__overrides_put", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Body"}}}}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Put Overrides Projects  Project Id  Overrides Put"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/config": {"get": {"tags": ["config"], "summary": "Get Resolved Config", "description": "The RESOLVED view (project override first, client default otherwise) so\noverride behavior is visible during testing. Keys that fail resolution\n(required-missing-at-both-levels) surface as their defect text.", "operationId": "get_resolved_config_projects__project_id__config_get", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Get Resolved Config Projects  Project Id  Config Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/team-members": {"get": {"tags": ["team"], "summary": "List Members", "operationId": "list_members_team_members_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"items": {"additionalProperties": true, "type": "object"}, "type": "array", "title": "Response List Members Team Members Get"}}}}}}, "post": {"tags": ["team"], "summary": "Create Member", "operationId": "create_member_team_members_post", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/MemberBody"}}}, "required": true}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Create Member Team Members Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/team-members/{member_id}": {"patch": {"tags": ["team"], "summary": "Patch Member", "operationId": "patch_member_team_members__member_id__patch", "parameters": [{"name": "member_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Member Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/MemberPatch"}}}}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Patch Member Team Members  Member Id  Patch"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/stakeholders": {"get": {"tags": ["team"], "summary": "List Stakeholders", "operationId": "list_stakeholders_stakeholders_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"items": {"additionalProperties": true, "type": "object"}, "type": "array", "title": "Response List Stakeholders Stakeholders Get"}}}}}}, "post": {"tags": ["team"], "summary": "Create Stakeholder", "operationId": "create_stakeholder_stakeholders_post", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/StakeholderBody"}}}, "required": true}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Create Stakeholder Stakeholders Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/stakeholders/{stakeholder_id}": {"delete": {"tags": ["team"], "summary": "Delete Stakeholder", "operationId": "delete_stakeholder_stakeholders__stakeholder_id__delete", "parameters": [{"name": "stakeholder_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Stakeholder Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Delete Stakeholder Stakeholders  Stakeholder Id  Delete"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects": {"get": {"tags": ["projects"], "summary": "List Projects", "operationId": "list_projects_projects_get", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"items": {"additionalProperties": true, "type": "object"}, "type": "array", "title": "Response List Projects Projects Get"}}}}}}, "post": {"tags": ["projects"], "summary": "Create Project", "operationId": "create_project_projects_post", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ProjectBody"}}}, "required": true}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Create Project Projects Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}": {"get": {"tags": ["projects"], "summary": "Project Detail", "operationId": "project_detail_projects__project_id__get", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Project Detail Projects  Project Id  Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/onboard": {"post": {"tags": ["projects"], "summary": "Onboard", "description": "Wraps orchestrator.graph.onboard_project (breakdown -> schedule ->\nassign). A halted breakdown returns halted=true \u2014 surfaced, not hidden.", "operationId": "onboard_projects__project_id__onboard_post", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CloseBody"}}}}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Onboard Projects  Project Id  Onboard Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/cycle": {"post": {"tags": ["projects"], "summary": "Cycle", "description": "Wraps orchestrator.graph.run_monitoring_cycle.", "operationId": "cycle_projects__project_id__cycle_post", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CycleBody"}}}}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Cycle Projects  Project Id  Cycle Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/close": {"post": {"tags": ["projects"], "summary": "Close", "description": "Wraps lifecycle.generate_retrospective (Tier 2 review item).", "operationId": "close_projects__project_id__close_post", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CloseBody"}}}}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Close Projects  Project Id  Close Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/archive": {"post": {"tags": ["projects"], "summary": "Archive", "description": "Wraps lifecycle.archive_project \u2014 refused (409) until the retrospective\nis explicitly approved; the UI surfaces the refusal, never works around it.", "operationId": "archive_projects__project_id__archive_post", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Archive Projects  Project Id  Archive Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/resume": {"post": {"tags": ["projects"], "summary": "Resume", "description": "Wraps escalation.resume_project \u2014 refused while paused items remain.", "operationId": "resume_projects__project_id__resume_post", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Resume Projects  Project Id  Resume Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/meetings": {"post": {"tags": ["projects"], "summary": "Upload Meeting", "description": "Wraps skills.meeting_summary.run (three-bucket extraction).", "operationId": "upload_meeting_projects__project_id__meetings_post", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/MeetingBody"}}}}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Upload Meeting Projects  Project Id  Meetings Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}, "get": {"tags": ["projects"], "summary": "List Meetings", "operationId": "list_meetings_projects__project_id__meetings_get", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "additionalProperties": true}, "title": "Response List Meetings Projects  Project Id  Meetings Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/change-requests": {"post": {"tags": ["projects"], "summary": "Create Change Request", "description": "Wraps governance.forms.create_change_request (Tier 3 gate).", "operationId": "create_change_request_projects__project_id__change_requests_post", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ChangeRequestBody"}}}}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Create Change Request Projects  Project Id  Change Requests Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/signoff-packets": {"post": {"tags": ["projects"], "summary": "Create Signoff Packet", "description": "Wraps governance.forms.create_signoff_packet (Tier 3 gate).", "operationId": "create_signoff_packet_projects__project_id__signoff_packets_post", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SignoffBody"}}}}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Create Signoff Packet Projects  Project Id  Signoff Packets Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/review-queue": {"get": {"tags": ["review"], "summary": "List Items", "operationId": "list_items_review_queue_get", "parameters": [{"name": "project_id", "in": "query", "required": false, "schema": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Project Id"}}, {"name": "status", "in": "query", "required": false, "schema": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Status"}}, {"name": "tier", "in": "query", "required": false, "schema": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Tier"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "additionalProperties": true}, "title": "Response List Items Review Queue Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/review-queue/{item_id}/resolve": {"post": {"tags": ["review"], "summary": "Resolve", "description": "Wraps review_queue.resolve_item \u2014 the single human resolution path.\nresolved_by is ALWAYS the logged-in user; the client cannot supply it.", "operationId": "resolve_review_queue__item_id__resolve_post", "parameters": [{"name": "item_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Item Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ResolveBody"}}}}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Resolve Review Queue  Item Id  Resolve Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/escalations/check": {"post": {"tags": ["review"], "summary": "Check Escalations", "description": "Wraps escalation.check_escalations (manual trigger for testing; it also\nruns inside every monitoring cycle).", "operationId": "check_escalations_escalations_check_post", "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Check Escalations Escalations Check Post"}}}}}}}, "/status-reports": {"post": {"tags": ["registers"], "summary": "Submit Status Report", "description": "The confirmed-Q7 manual inbox: the row is parsed by Status Tracking on\nthe next monitoring cycle, not here.", "operationId": "submit_status_report_status_reports_post", "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/StatusReportBody"}}}, "required": true}, "responses": {"201": {"description": "Successful Response", "content": {"application/json": {"schema": {"additionalProperties": true, "type": "object", "title": "Response Submit Status Report Status Reports Post"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/status-reports": {"get": {"tags": ["registers"], "summary": "List Status Reports", "operationId": "list_status_reports_projects__project_id__status_reports_get", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "additionalProperties": true}, "title": "Response List Status Reports Projects  Project Id  Status Reports Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/risks": {"get": {"tags": ["registers"], "summary": "List Risks", "operationId": "list_risks_projects__project_id__risks_get", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}, {"name": "status", "in": "query", "required": false, "schema": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Status"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "additionalProperties": true}, "title": "Response List Risks Projects  Project Id  Risks Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/risks/{risk_id}/score": {"patch": {"tags": ["registers"], "summary": "Adjust Risk Score", "description": "Wraps risk_tracking.adjust_score (OQ-6: audited, human actor).", "operationId": "adjust_risk_score_risks__risk_id__score_patch", "parameters": [{"name": "risk_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Risk Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ScoreBody"}}}}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Adjust Risk Score Risks  Risk Id  Score Patch"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/blockers": {"get": {"tags": ["registers"], "summary": "List Blockers", "description": "Unowned blockers (assigned_to NULL) sort first \u2014 the UI surfaces them.", "operationId": "list_blockers_projects__project_id__blockers_get", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "additionalProperties": true}, "title": "Response List Blockers Projects  Project Id  Blockers Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/blockers/{blocker_id}": {"patch": {"tags": ["registers"], "summary": "Patch Blocker", "description": "Wraps blockers.assign_blocker / resolve_blocker (OQ-6: audited).", "operationId": "patch_blocker_blockers__blocker_id__patch", "parameters": [{"name": "blocker_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Blocker Id"}}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/BlockerPatch"}}}}, "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "object", "additionalProperties": true, "title": "Response Patch Blocker Blockers  Blocker Id  Patch"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/escalation-log": {"get": {"tags": ["registers"], "summary": "Escalation Log", "operationId": "escalation_log_projects__project_id__escalation_log_get", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "additionalProperties": true}, "title": "Response Escalation Log Projects  Project Id  Escalation Log Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/audit-log": {"get": {"tags": ["registers"], "summary": "Audit Log", "operationId": "audit_log_projects__project_id__audit_log_get", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}, {"name": "limit", "in": "query", "required": false, "schema": {"type": "integer", "default": 200, "title": "Limit"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "additionalProperties": true}, "title": "Response Audit Log Projects  Project Id  Audit Log Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}, "/projects/{project_id}/artifacts": {"get": {"tags": ["registers"], "summary": "Artifacts", "operationId": "artifacts_projects__project_id__artifacts_get", "parameters": [{"name": "project_id", "in": "path", "required": true, "schema": {"type": "integer", "title": "Project Id"}}], "responses": {"200": {"description": "Successful Response", "content": {"application/json": {"schema": {"type": "array", "items": {"type": "object", "additionalProperties": true}, "title": "Response Artifacts Projects  Project Id  Artifacts Get"}}}}, "422": {"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}}}}}, "components": {"schemas": {"BlockerPatch": {"properties": {"assigned_to": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Assigned To"}, "resolve": {"type": "boolean", "title": "Resolve", "default": false}}, "type": "object", "title": "BlockerPatch"}, "ChangeRequestBody": {"properties": {"title": {"type": "string", "title": "Title"}, "description": {"type": "string", "title": "Description"}}, "type": "object", "required": ["title", "description"], "title": "ChangeRequestBody"}, "ClientBody": {"properties": {"name": {"type": "string", "title": "Name"}}, "type": "object", "required": ["name"], "title": "ClientBody"}, "CloseBody": {"properties": {"as_of": {"type": "string", "format": "date", "title": "As Of"}}, "type": "object", "required": ["as_of"], "title": "CloseBody"}, "CycleBody": {"properties": {"as_of": {"type": "string", "format": "date", "title": "As Of"}, "draft_comms": {"anyOf": [{"type": "boolean"}, {"type": "null"}], "title": "Draft Comms"}}, "type": "object", "required": ["as_of"], "title": "CycleBody"}, "HTTPValidationError": {"properties": {"detail": {"items": {"$ref": "#/components/schemas/ValidationError"}, "type": "array", "title": "Detail"}}, "type": "object", "title": "HTTPValidationError"}, "LoginBody": {"properties": {"email": {"type": "string", "title": "Email"}, "password": {"type": "string", "title": "Password"}}, "type": "object", "required": ["email", "password"], "title": "LoginBody"}, "MeetingBody": {"properties": {"raw_text": {"type": "string", "title": "Raw Text"}, "meeting_date": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Meeting Date"}}, "type": "object", "required": ["raw_text"], "title": "MeetingBody"}, "MemberBody": {"properties": {"name": {"type": "string", "title": "Name"}, "role": {"type": "string", "title": "Role"}, "skill_tags": {"items": {"type": "string"}, "type": "array", "title": "Skill Tags", "default": []}, "capacity_hrs": {"type": "number", "title": "Capacity Hrs", "default": 40}}, "type": "object", "required": ["name", "role"], "title": "MemberBody"}, "MemberPatch": {"properties": {"name": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Name"}, "role": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Role"}, "skill_tags": {"anyOf": [{"items": {"type": "string"}, "type": "array"}, {"type": "null"}], "title": "Skill Tags"}, "capacity_hrs": {"anyOf": [{"type": "number"}, {"type": "null"}], "title": "Capacity Hrs"}, "is_active": {"anyOf": [{"type": "boolean"}, {"type": "null"}], "title": "Is Active"}}, "type": "object", "title": "MemberPatch"}, "ProjectBody": {"properties": {"name": {"type": "string", "title": "Name"}, "scope_document": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Scope Document"}, "scope_summary": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Scope Summary"}, "budget_total": {"anyOf": [{"type": "number"}, {"type": "null"}], "title": "Budget Total"}, "timeline_start": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Timeline Start"}, "timeline_end": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Timeline End"}, "config_overrides": {"anyOf": [{"additionalProperties": true, "type": "object"}, {"type": "null"}], "title": "Config Overrides"}}, "type": "object", "required": ["name"], "title": "ProjectBody"}, "ResolveBody": {"properties": {"decision": {"type": "string", "title": "Decision"}, "notes": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Notes"}, "final_text": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Final Text"}}, "type": "object", "required": ["decision"], "title": "ResolveBody"}, "ScoreBody": {"properties": {"severity": {"type": "integer", "title": "Severity"}, "likelihood": {"type": "integer", "title": "Likelihood"}}, "type": "object", "required": ["severity", "likelihood"], "title": "ScoreBody"}, "SignoffBody": {"properties": {"title": {"type": "string", "title": "Title"}, "content": {"type": "string", "title": "Content"}}, "type": "object", "required": ["title", "content"], "title": "SignoffBody"}, "StakeholderBody": {"properties": {"name": {"type": "string", "title": "Name"}, "audience_type": {"type": "string", "title": "Audience Type"}, "email": {"anyOf": [{"type": "string"}, {"type": "null"}], "title": "Email"}, "project_id": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Project Id"}}, "type": "object", "required": ["name", "audience_type"], "title": "StakeholderBody"}, "StatusReportBody": {"properties": {"task_id": {"type": "integer", "title": "Task Id"}, "member_id": {"type": "integer", "title": "Member Id"}, "raw_text": {"type": "string", "title": "Raw Text"}}, "type": "object", "required": ["task_id", "member_id", "raw_text"], "title": "StatusReportBody"}, "UserBody": {"properties": {"email": {"type": "string", "title": "Email"}, "display_name": {"type": "string", "title": "Display Name"}, "role": {"type": "string", "title": "Role"}}, "type": "object", "required": ["email", "display_name", "role"], "title": "UserBody"}, "ValidationError": {"properties": {"loc": {"items": {"anyOf": [{"type": "string"}, {"type": "integer"}]}, "type": "array", "title": "Location"}, "msg": {"type": "string", "title": "Message"}, "type": {"type": "string", "title": "Error Type"}, "input": {"title": "Input"}, "ctx": {"type": "object", "title": "Context"}}, "type": "object", "required": ["loc", "msg", "type"], "title": "ValidationError"}}}}
+{
+"openapi": "3.1.0",
+"info": {
+"title": "NEXUS PM Agent API",
+"version": "0.1.0"
+},
+"paths": {
+"/auth/login": {
+"post": {
+"tags": [
+"auth"
+],
+"summary": "Login",
+"operationId": "login_auth_login_post",
+"requestBody": {
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/LoginBody"
+}
+}
+},
+"required": true
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Login Auth Login Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/auth/logout": {
+"post": {
+"tags": [
+"auth"
+],
+"summary": "Logout",
+"operationId": "logout_auth_logout_post",
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Logout Auth Logout Post"
+}
+}
+}
+}
+}
+}
+},
+"/auth/me": {
+"get": {
+"tags": [
+"auth"
+],
+"summary": "Me",
+"operationId": "me_auth_me_get",
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Me Auth Me Get"
+}
+}
+}
+}
+}
+}
+},
+"/admin/clients": {
+"get": {
+"tags": [
+"admin"
+],
+"summary": "List Clients",
+"operationId": "list_clients_admin_clients_get",
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"items": {
+"additionalProperties": true,
+"type": "object"
+},
+"type": "array",
+"title": "Response List Clients Admin Clients Get"
+}
+}
+}
+}
+}
+},
+"post": {
+"tags": [
+"admin"
+],
+"summary": "Create Client",
+"operationId": "create_client_admin_clients_post",
+"requestBody": {
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/ClientBody"
+}
+}
+},
+"required": true
+},
+"responses": {
+"201": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Create Client Admin Clients Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/admin/clients/{client_id}": {
+"patch": {
+"tags": [
+"admin"
+],
+"summary": "Rename Client",
+"operationId": "rename_client_admin_clients__client_id__patch",
+"parameters": [
+{
+"name": "client_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Client Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/ClientBody"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Rename Client Admin Clients  Client Id  Patch"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+},
+"delete": {
+"tags": [
+"admin"
+],
+"summary": "Delete Client",
+"description": "Safe delete only: a company that has accumulated users or projects is\npart of the governance record and cannot be removed.",
+"operationId": "delete_client_admin_clients__client_id__delete",
+"parameters": [
+{
+"name": "client_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Client Id"
+}
+}
+],
+"responses": {
+"204": {
+"description": "Successful Response"
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/admin/clients/{client_id}/config": {
+"get": {
+"tags": [
+"admin"
+],
+"summary": "Get Client Config",
+"operationId": "get_client_config_admin_clients__client_id__config_get",
+"parameters": [
+{
+"name": "client_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Client Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Get Client Config Admin Clients  Client Id  Config Get"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+},
+"put": {
+"tags": [
+"admin"
+],
+"summary": "Put Client Config",
+"operationId": "put_client_config_admin_clients__client_id__config_put",
+"parameters": [
+{
+"name": "client_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Client Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Body"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Put Client Config Admin Clients  Client Id  Config Put"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/admin/users": {
+"get": {
+"tags": [
+"admin"
+],
+"summary": "List All Users",
+"description": "Every non-bootstrap user across all companies, with the company name\njoined in for the admin table. No credentials exposed.",
+"operationId": "list_all_users_admin_users_get",
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"items": {
+"additionalProperties": true,
+"type": "object"
+},
+"type": "array",
+"title": "Response List All Users Admin Users Get"
+}
+}
+}
+}
+}
+},
+"post": {
+"tags": [
+"admin"
+],
+"summary": "Create User",
+"operationId": "create_user_admin_users_post",
+"requestBody": {
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/UserBody"
+}
+}
+},
+"required": true
+},
+"responses": {
+"201": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Create User Admin Users Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/admin/users/{user_id}": {
+"patch": {
+"tags": [
+"admin"
+],
+"summary": "Update User",
+"operationId": "update_user_admin_users__user_id__patch",
+"parameters": [
+{
+"name": "user_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "User Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/UserPatch"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Update User Admin Users  User Id  Patch"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/admin/users/{user_id}/reset-password": {
+"post": {
+"tags": [
+"admin"
+],
+"summary": "Reset Password",
+"description": "Regenerates credentials and returns the plaintext EXACTLY ONCE \u2014 the\nsame handoff rule as creation. Old password stops working immediately.",
+"operationId": "reset_password_admin_users__user_id__reset_password_post",
+"parameters": [
+{
+"name": "user_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "User Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Reset Password Admin Users  User Id  Reset Password Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/users": {
+"get": {
+"tags": [
+"config"
+],
+"summary": "List Users",
+"description": "Client-scoped user list (id/name/role) so the config screen can offer\nreviewer/approver selects. Plain read \u2014 no credentials exposed.",
+"operationId": "list_users_users_get",
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"items": {
+"additionalProperties": true,
+"type": "object"
+},
+"type": "array",
+"title": "Response List Users Users Get"
+}
+}
+}
+}
+}
+}
+},
+"/config": {
+"get": {
+"tags": [
+"config"
+],
+"summary": "Get Config",
+"description": "404 when no config row exists yet \u2014 'not saved yet' is not a defect;\n422-with-defects is reserved for rejected SAVES.",
+"operationId": "get_config_config_get",
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Get Config Config Get"
+}
+}
+}
+}
+}
+},
+"put": {
+"tags": [
+"config"
+],
+"summary": "Put Config",
+"operationId": "put_config_config_put",
+"requestBody": {
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Body"
+}
+}
+},
+"required": true
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Put Config Config Put"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/overrides": {
+"put": {
+"tags": [
+"config"
+],
+"summary": "Put Overrides",
+"operationId": "put_overrides_projects__project_id__overrides_put",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Body"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Put Overrides Projects  Project Id  Overrides Put"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/config": {
+"get": {
+"tags": [
+"config"
+],
+"summary": "Get Resolved Config",
+"description": "The RESOLVED view (project override first, client default otherwise) so\noverride behavior is visible during testing. Keys that fail resolution\n(required-missing-at-both-levels) surface as their defect text.",
+"operationId": "get_resolved_config_projects__project_id__config_get",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Get Resolved Config Projects  Project Id  Config Get"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/me/work": {
+"get": {
+"tags": [
+"me"
+],
+"summary": "My Work",
+"operationId": "my_work_me_work_get",
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response My Work Me Work Get"
+}
+}
+}
+}
+}
+}
+},
+"/team-members": {
+"get": {
+"tags": [
+"team"
+],
+"summary": "List Members",
+"operationId": "list_members_team_members_get",
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"items": {
+"additionalProperties": true,
+"type": "object"
+},
+"type": "array",
+"title": "Response List Members Team Members Get"
+}
+}
+}
+}
+}
+},
+"post": {
+"tags": [
+"team"
+],
+"summary": "Create Member",
+"operationId": "create_member_team_members_post",
+"requestBody": {
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/MemberBody"
+}
+}
+},
+"required": true
+},
+"responses": {
+"201": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Create Member Team Members Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/team-members/{member_id}": {
+"patch": {
+"tags": [
+"team"
+],
+"summary": "Patch Member",
+"operationId": "patch_member_team_members__member_id__patch",
+"parameters": [
+{
+"name": "member_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Member Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/MemberPatch"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Patch Member Team Members  Member Id  Patch"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/stakeholders": {
+"get": {
+"tags": [
+"team"
+],
+"summary": "List Stakeholders",
+"operationId": "list_stakeholders_stakeholders_get",
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"items": {
+"additionalProperties": true,
+"type": "object"
+},
+"type": "array",
+"title": "Response List Stakeholders Stakeholders Get"
+}
+}
+}
+}
+}
+},
+"post": {
+"tags": [
+"team"
+],
+"summary": "Create Stakeholder",
+"operationId": "create_stakeholder_stakeholders_post",
+"requestBody": {
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/StakeholderBody"
+}
+}
+},
+"required": true
+},
+"responses": {
+"201": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Create Stakeholder Stakeholders Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/stakeholders/{stakeholder_id}": {
+"delete": {
+"tags": [
+"team"
+],
+"summary": "Delete Stakeholder",
+"operationId": "delete_stakeholder_stakeholders__stakeholder_id__delete",
+"parameters": [
+{
+"name": "stakeholder_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Stakeholder Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Delete Stakeholder Stakeholders  Stakeholder Id  Delete"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects": {
+"get": {
+"tags": [
+"projects"
+],
+"summary": "List Projects",
+"operationId": "list_projects_projects_get",
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"items": {
+"additionalProperties": true,
+"type": "object"
+},
+"type": "array",
+"title": "Response List Projects Projects Get"
+}
+}
+}
+}
+}
+},
+"post": {
+"tags": [
+"projects"
+],
+"summary": "Create Project",
+"operationId": "create_project_projects_post",
+"requestBody": {
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/ProjectBody"
+}
+}
+},
+"required": true
+},
+"responses": {
+"201": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Create Project Projects Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}": {
+"get": {
+"tags": [
+"projects"
+],
+"summary": "Project Detail",
+"operationId": "project_detail_projects__project_id__get",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Project Detail Projects  Project Id  Get"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/onboard": {
+"post": {
+"tags": [
+"projects"
+],
+"summary": "Onboard",
+"description": "Wraps orchestrator.graph.onboard_project (breakdown -> schedule ->\nassign). A halted breakdown returns halted=true \u2014 surfaced, not hidden.",
+"operationId": "onboard_projects__project_id__onboard_post",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/CloseBody"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Onboard Projects  Project Id  Onboard Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/cycle": {
+"post": {
+"tags": [
+"projects"
+],
+"summary": "Cycle",
+"description": "Wraps orchestrator.graph.run_monitoring_cycle.",
+"operationId": "cycle_projects__project_id__cycle_post",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/CycleBody"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Cycle Projects  Project Id  Cycle Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/close": {
+"post": {
+"tags": [
+"projects"
+],
+"summary": "Close",
+"description": "Wraps lifecycle.generate_retrospective (Tier 2 review item).",
+"operationId": "close_projects__project_id__close_post",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/CloseBody"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Close Projects  Project Id  Close Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/archive": {
+"post": {
+"tags": [
+"projects"
+],
+"summary": "Archive",
+"description": "Wraps lifecycle.archive_project \u2014 refused (409) until the retrospective\nis explicitly approved; the UI surfaces the refusal, never works around it.",
+"operationId": "archive_projects__project_id__archive_post",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Archive Projects  Project Id  Archive Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/resume": {
+"post": {
+"tags": [
+"projects"
+],
+"summary": "Resume",
+"description": "Wraps escalation.resume_project \u2014 refused while paused items remain.",
+"operationId": "resume_projects__project_id__resume_post",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Resume Projects  Project Id  Resume Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/meetings": {
+"post": {
+"tags": [
+"projects"
+],
+"summary": "Upload Meeting",
+"description": "Wraps skills.meeting_summary.run (three-bucket extraction).",
+"operationId": "upload_meeting_projects__project_id__meetings_post",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/MeetingBody"
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Upload Meeting Projects  Project Id  Meetings Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+},
+"get": {
+"tags": [
+"projects"
+],
+"summary": "List Meetings",
+"operationId": "list_meetings_projects__project_id__meetings_get",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "array",
+"items": {
+"type": "object",
+"additionalProperties": true
+},
+"title": "Response List Meetings Projects  Project Id  Meetings Get"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/change-requests": {
+"post": {
+"tags": [
+"projects"
+],
+"summary": "Create Change Request",
+"description": "Wraps governance.forms.create_change_request (Tier 3 gate).",
+"operationId": "create_change_request_projects__project_id__change_requests_post",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/ChangeRequestBody"
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Create Change Request Projects  Project Id  Change Requests Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/signoff-packets": {
+"post": {
+"tags": [
+"projects"
+],
+"summary": "Create Signoff Packet",
+"description": "Wraps governance.forms.create_signoff_packet (Tier 3 gate).",
+"operationId": "create_signoff_packet_projects__project_id__signoff_packets_post",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/SignoffBody"
+}
+}
+}
+},
+"responses": {
+"201": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Create Signoff Packet Projects  Project Id  Signoff Packets Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/review-queue": {
+"get": {
+"tags": [
+"review"
+],
+"summary": "List Items",
+"operationId": "list_items_review_queue_get",
+"parameters": [
+{
+"name": "project_id",
+"in": "query",
+"required": false,
+"schema": {
+"anyOf": [
+{
+"type": "integer"
+},
+{
+"type": "null"
+}
+],
+"title": "Project Id"
+}
+},
+{
+"name": "status",
+"in": "query",
+"required": false,
+"schema": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Status"
+}
+},
+{
+"name": "tier",
+"in": "query",
+"required": false,
+"schema": {
+"anyOf": [
+{
+"type": "integer"
+},
+{
+"type": "null"
+}
+],
+"title": "Tier"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "array",
+"items": {
+"type": "object",
+"additionalProperties": true
+},
+"title": "Response List Items Review Queue Get"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/review-queue/{item_id}/resolve": {
+"post": {
+"tags": [
+"review"
+],
+"summary": "Resolve",
+"description": "Wraps review_queue.resolve_item \u2014 the single human resolution path.\nresolved_by is ALWAYS the logged-in user; the client cannot supply it.",
+"operationId": "resolve_review_queue__item_id__resolve_post",
+"parameters": [
+{
+"name": "item_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Item Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/ResolveBody"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Resolve Review Queue  Item Id  Resolve Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/escalations/check": {
+"post": {
+"tags": [
+"review"
+],
+"summary": "Check Escalations",
+"description": "Wraps escalation.check_escalations (manual trigger for testing; it also\nruns inside every monitoring cycle).",
+"operationId": "check_escalations_escalations_check_post",
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Check Escalations Escalations Check Post"
+}
+}
+}
+}
+}
+}
+},
+"/status-reports": {
+"post": {
+"tags": [
+"registers"
+],
+"summary": "Submit Status Report",
+"description": "The confirmed-Q7 manual inbox: the row is parsed by Status Tracking on\nthe next monitoring cycle, not here.\n\nScoping: the task must belong to the caller's company, and a member may\nonly report AS THEMSELVES (their linked roster row) \u2014 client_admin can\nfile on anyone's behalf.",
+"operationId": "submit_status_report_status_reports_post",
+"requestBody": {
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/StatusReportBody"
+}
+}
+},
+"required": true
+},
+"responses": {
+"201": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"additionalProperties": true,
+"type": "object",
+"title": "Response Submit Status Report Status Reports Post"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/status-reports": {
+"get": {
+"tags": [
+"registers"
+],
+"summary": "List Status Reports",
+"operationId": "list_status_reports_projects__project_id__status_reports_get",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "array",
+"items": {
+"type": "object",
+"additionalProperties": true
+},
+"title": "Response List Status Reports Projects  Project Id  Status Reports Get"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/risks": {
+"get": {
+"tags": [
+"registers"
+],
+"summary": "List Risks",
+"operationId": "list_risks_projects__project_id__risks_get",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+},
+{
+"name": "status",
+"in": "query",
+"required": false,
+"schema": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Status"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "array",
+"items": {
+"type": "object",
+"additionalProperties": true
+},
+"title": "Response List Risks Projects  Project Id  Risks Get"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/risks/{risk_id}/score": {
+"patch": {
+"tags": [
+"registers"
+],
+"summary": "Adjust Risk Score",
+"description": "Wraps risk_tracking.adjust_score (OQ-6: audited, human actor).",
+"operationId": "adjust_risk_score_risks__risk_id__score_patch",
+"parameters": [
+{
+"name": "risk_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Risk Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/ScoreBody"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Adjust Risk Score Risks  Risk Id  Score Patch"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/blockers": {
+"get": {
+"tags": [
+"registers"
+],
+"summary": "List Blockers",
+"description": "Unowned blockers (assigned_to NULL) sort first \u2014 the UI surfaces them.",
+"operationId": "list_blockers_projects__project_id__blockers_get",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "array",
+"items": {
+"type": "object",
+"additionalProperties": true
+},
+"title": "Response List Blockers Projects  Project Id  Blockers Get"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/blockers/{blocker_id}": {
+"patch": {
+"tags": [
+"registers"
+],
+"summary": "Patch Blocker",
+"description": "Wraps blockers.assign_blocker / resolve_blocker (OQ-6: audited).",
+"operationId": "patch_blocker_blockers__blocker_id__patch",
+"parameters": [
+{
+"name": "blocker_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Blocker Id"
+}
+}
+],
+"requestBody": {
+"required": true,
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/BlockerPatch"
+}
+}
+}
+},
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "object",
+"additionalProperties": true,
+"title": "Response Patch Blocker Blockers  Blocker Id  Patch"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/escalation-log": {
+"get": {
+"tags": [
+"registers"
+],
+"summary": "Escalation Log",
+"operationId": "escalation_log_projects__project_id__escalation_log_get",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "array",
+"items": {
+"type": "object",
+"additionalProperties": true
+},
+"title": "Response Escalation Log Projects  Project Id  Escalation Log Get"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/audit-log": {
+"get": {
+"tags": [
+"registers"
+],
+"summary": "Audit Log",
+"operationId": "audit_log_projects__project_id__audit_log_get",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+},
+{
+"name": "limit",
+"in": "query",
+"required": false,
+"schema": {
+"type": "integer",
+"default": 200,
+"title": "Limit"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "array",
+"items": {
+"type": "object",
+"additionalProperties": true
+},
+"title": "Response Audit Log Projects  Project Id  Audit Log Get"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+},
+"/projects/{project_id}/artifacts": {
+"get": {
+"tags": [
+"registers"
+],
+"summary": "Artifacts",
+"operationId": "artifacts_projects__project_id__artifacts_get",
+"parameters": [
+{
+"name": "project_id",
+"in": "path",
+"required": true,
+"schema": {
+"type": "integer",
+"title": "Project Id"
+}
+}
+],
+"responses": {
+"200": {
+"description": "Successful Response",
+"content": {
+"application/json": {
+"schema": {
+"type": "array",
+"items": {
+"type": "object",
+"additionalProperties": true
+},
+"title": "Response Artifacts Projects  Project Id  Artifacts Get"
+}
+}
+}
+},
+"422": {
+"description": "Validation Error",
+"content": {
+"application/json": {
+"schema": {
+"$ref": "#/components/schemas/HTTPValidationError"
+}
+}
+}
+}
+}
+}
+}
+},
+"components": {
+"schemas": {
+"BlockerPatch": {
+"properties": {
+"assigned_to": {
+"anyOf": [
+{
+"type": "integer"
+},
+{
+"type": "null"
+}
+],
+"title": "Assigned To"
+},
+"resolve": {
+"type": "boolean",
+"title": "Resolve",
+"default": false
+}
+},
+"type": "object",
+"title": "BlockerPatch"
+},
+"ChangeRequestBody": {
+"properties": {
+"title": {
+"type": "string",
+"title": "Title"
+},
+"description": {
+"type": "string",
+"title": "Description"
+}
+},
+"type": "object",
+"required": [
+"title",
+"description"
+],
+"title": "ChangeRequestBody"
+},
+"ClientBody": {
+"properties": {
+"name": {
+"type": "string",
+"title": "Name"
+}
+},
+"type": "object",
+"required": [
+"name"
+],
+"title": "ClientBody"
+},
+"CloseBody": {
+"properties": {
+"as_of": {
+"type": "string",
+"format": "date",
+"title": "As Of"
+}
+},
+"type": "object",
+"required": [
+"as_of"
+],
+"title": "CloseBody"
+},
+"CycleBody": {
+"properties": {
+"as_of": {
+"type": "string",
+"format": "date",
+"title": "As Of"
+},
+"draft_comms": {
+"anyOf": [
+{
+"type": "boolean"
+},
+{
+"type": "null"
+}
+],
+"title": "Draft Comms"
+}
+},
+"type": "object",
+"required": [
+"as_of"
+],
+"title": "CycleBody"
+},
+"HTTPValidationError": {
+"properties": {
+"detail": {
+"items": {
+"$ref": "#/components/schemas/ValidationError"
+},
+"type": "array",
+"title": "Detail"
+}
+},
+"type": "object",
+"title": "HTTPValidationError"
+},
+"LoginBody": {
+"properties": {
+"email": {
+"type": "string",
+"title": "Email"
+},
+"password": {
+"type": "string",
+"title": "Password"
+}
+},
+"type": "object",
+"required": [
+"email",
+"password"
+],
+"title": "LoginBody"
+},
+"MeetingBody": {
+"properties": {
+"raw_text": {
+"type": "string",
+"title": "Raw Text"
+},
+"meeting_date": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Meeting Date"
+}
+},
+"type": "object",
+"required": [
+"raw_text"
+],
+"title": "MeetingBody"
+},
+"MemberBody": {
+"properties": {
+"name": {
+"type": "string",
+"title": "Name"
+},
+"role": {
+"type": "string",
+"title": "Role"
+},
+"skill_tags": {
+"items": {
+"type": "string"
+},
+"type": "array",
+"title": "Skill Tags",
+"default": []
+},
+"capacity_hrs": {
+"type": "number",
+"title": "Capacity Hrs",
+"default": 40
+}
+},
+"type": "object",
+"required": [
+"name",
+"role"
+],
+"title": "MemberBody"
+},
+"MemberPatch": {
+"properties": {
+"name": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Name"
+},
+"role": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Role"
+},
+"skill_tags": {
+"anyOf": [
+{
+"items": {
+"type": "string"
+},
+"type": "array"
+},
+{
+"type": "null"
+}
+],
+"title": "Skill Tags"
+},
+"capacity_hrs": {
+"anyOf": [
+{
+"type": "number"
+},
+{
+"type": "null"
+}
+],
+"title": "Capacity Hrs"
+},
+"is_active": {
+"anyOf": [
+{
+"type": "boolean"
+},
+{
+"type": "null"
+}
+],
+"title": "Is Active"
+},
+"user_id": {
+"anyOf": [
+{
+"type": "integer"
+},
+{
+"type": "null"
+}
+],
+"title": "User Id"
+}
+},
+"type": "object",
+"title": "MemberPatch"
+},
+"ProjectBody": {
+"properties": {
+"name": {
+"type": "string",
+"title": "Name"
+},
+"scope_document": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Scope Document"
+},
+"scope_summary": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Scope Summary"
+},
+"budget_total": {
+"anyOf": [
+{
+"type": "number"
+},
+{
+"type": "null"
+}
+],
+"title": "Budget Total"
+},
+"timeline_start": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Timeline Start"
+},
+"timeline_end": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Timeline End"
+},
+"config_overrides": {
+"anyOf": [
+{
+"additionalProperties": true,
+"type": "object"
+},
+{
+"type": "null"
+}
+],
+"title": "Config Overrides"
+}
+},
+"type": "object",
+"required": [
+"name"
+],
+"title": "ProjectBody"
+},
+"ResolveBody": {
+"properties": {
+"decision": {
+"type": "string",
+"title": "Decision"
+},
+"notes": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Notes"
+},
+"final_text": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Final Text"
+}
+},
+"type": "object",
+"required": [
+"decision"
+],
+"title": "ResolveBody"
+},
+"ScoreBody": {
+"properties": {
+"severity": {
+"type": "integer",
+"title": "Severity"
+},
+"likelihood": {
+"type": "integer",
+"title": "Likelihood"
+}
+},
+"type": "object",
+"required": [
+"severity",
+"likelihood"
+],
+"title": "ScoreBody"
+},
+"SignoffBody": {
+"properties": {
+"title": {
+"type": "string",
+"title": "Title"
+},
+"content": {
+"type": "string",
+"title": "Content"
+}
+},
+"type": "object",
+"required": [
+"title",
+"content"
+],
+"title": "SignoffBody"
+},
+"StakeholderBody": {
+"properties": {
+"name": {
+"type": "string",
+"title": "Name"
+},
+"audience_type": {
+"type": "string",
+"title": "Audience Type"
+},
+"email": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Email"
+},
+"project_id": {
+"anyOf": [
+{
+"type": "integer"
+},
+{
+"type": "null"
+}
+],
+"title": "Project Id"
+}
+},
+"type": "object",
+"required": [
+"name",
+"audience_type"
+],
+"title": "StakeholderBody"
+},
+"StatusReportBody": {
+"properties": {
+"task_id": {
+"type": "integer",
+"title": "Task Id"
+},
+"member_id": {
+"type": "integer",
+"title": "Member Id"
+},
+"raw_text": {
+"type": "string",
+"title": "Raw Text"
+}
+},
+"type": "object",
+"required": [
+"task_id",
+"member_id",
+"raw_text"
+],
+"title": "StatusReportBody"
+},
+"UserBody": {
+"properties": {
+"client_id": {
+"type": "integer",
+"title": "Client Id"
+},
+"email": {
+"type": "string",
+"title": "Email"
+},
+"display_name": {
+"type": "string",
+"title": "Display Name"
+},
+"role": {
+"type": "string",
+"title": "Role"
+}
+},
+"type": "object",
+"required": [
+"client_id",
+"email",
+"display_name",
+"role"
+],
+"title": "UserBody"
+},
+"UserPatch": {
+"properties": {
+"display_name": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Display Name"
+},
+"role": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Role"
+},
+"invite_status": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "null"
+}
+],
+"title": "Invite Status"
+}
+},
+"type": "object",
+"title": "UserPatch"
+},
+"ValidationError": {
+"properties": {
+"loc": {
+"items": {
+"anyOf": [
+{
+"type": "string"
+},
+{
+"type": "integer"
+}
+]
+},
+"type": "array",
+"title": "Location"
+},
+"msg": {
+"type": "string",
+"title": "Message"
+},
+"type": {
+"type": "string",
+"title": "Error Type"
+},
+"input": {
+"title": "Input"
+},
+"ctx": {
+"type": "object",
+"title": "Context"
+}
+},
+"type": "object",
+"required": [
+"loc",
+"msg",
+"type"
+],
+"title": "ValidationError"
+}
+}
+}
+}

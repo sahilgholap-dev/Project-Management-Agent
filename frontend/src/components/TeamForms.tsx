@@ -2,9 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Member } from "@/app/(client)/team/page";
+import { Button, Table, Td, inputCls } from "@/components/ui";
+import type { ClientUser, Member } from "@/app/(client)/team/page";
 
-function MemberRow({ member, canEdit }: { member: Member; canEdit: boolean }) {
+function MemberRow({ member, users, canEdit }: {
+  member: Member;
+  users: ClientUser[];
+  canEdit: boolean;
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [skills, setSkills] = useState(member.skill_tags.join(", "));
@@ -27,31 +32,52 @@ function MemberRow({ member, canEdit }: { member: Member; canEdit: boolean }) {
   }
 
   return (
-    <tr className={`border-b last:border-0 ${member.is_active ? "" : "opacity-50"}`}>
-      <td className="px-4 py-2">{member.name}</td>
-      <td className="px-2 py-2">{member.role}</td>
-      <td className="px-2 py-2">
+    <tr className={member.is_active ? "hover:bg-slate-50" : "opacity-50 hover:bg-slate-50"}>
+      <Td className="font-medium text-slate-900">{member.name}</Td>
+      <Td>{member.role}</Td>
+      <Td>
         {editing ? (
           <input value={skills} onChange={(e) => setSkills(e.target.value)}
-                 className="w-full rounded border px-2 py-1" />
+                 className={`${inputCls} px-2 py-1`} />
         ) : member.skill_tags.join(", ") || "—"}
-      </td>
-      <td className="px-2 py-2">
+      </Td>
+      <Td>
         {editing ? (
           <input type="number" min="1" value={capacity}
                  onChange={(e) => setCapacity(Number(e.target.value))}
-                 className="w-20 rounded border px-2 py-1" />
+                 className={`${inputCls} w-20 px-2 py-1`} />
         ) : `${member.capacity_hrs}h/wk`}
-      </td>
-      <td className="px-2 py-2 text-slate-500" title="current-week load (display only)">
+      </Td>
+      <Td className="text-slate-500" title="current-week load (display only)">
         {member.allocated_hrs}h
-      </td>
-      <td className="px-2 py-2">
+      </Td>
+      <Td title="the login this roster row belongs to — powers the My Work portal">
+        {canEdit ? (
+          <select
+            value={member.user_id ?? ""}
+            onChange={(e) => patch({
+              user_id: e.target.value === "" ? null : Number(e.target.value),
+            })}
+            className={`${inputCls} w-44 px-2 py-1 text-xs`}
+          >
+            <option value="">— no login linked —</option>
+            {users.filter((u) => u.role !== "platform_admin").map((u) => (
+              <option key={u.user_id} value={u.user_id}>
+                {u.email}
+              </option>
+            ))}
+          </select>
+        ) : (
+          users.find((u) => u.user_id === member.user_id)?.email ?? "—"
+        )}
+      </Td>
+      <Td>
         {canEdit && (
           <div className="flex gap-1">
             {editing ? (
-              <button
-                className="rounded border px-2 py-0.5 hover:bg-slate-100"
+              <Button
+                variant="secondary"
+                small
                 onClick={async () => {
                   const ok = await patch({
                     skill_tags: skills.split(",").map((s) => s.trim()).filter(Boolean),
@@ -60,27 +86,27 @@ function MemberRow({ member, canEdit }: { member: Member; canEdit: boolean }) {
                   if (ok) setEditing(false);
                 }}>
                 save
-              </button>
+              </Button>
             ) : (
-              <button className="rounded border px-2 py-0.5 hover:bg-slate-100"
-                      onClick={() => setEditing(true)}>
+              <Button variant="secondary" small onClick={() => setEditing(true)}>
                 edit
-              </button>
+              </Button>
             )}
-            <button className="rounded border px-2 py-0.5 hover:bg-slate-100"
+            <Button variant="secondary" small
                     onClick={() => patch({ is_active: !member.is_active })}>
               {member.is_active ? "deactivate" : "activate"}
-            </button>
+            </Button>
           </div>
         )}
-        {error && <p className="text-red-600">{error}</p>}
-      </td>
+        {error && <p className="text-xs text-red-600">{error}</p>}
+      </Td>
     </tr>
   );
 }
 
-export function TeamForms({ members, canEdit }: {
+export function TeamForms({ members, users, canEdit }: {
   members: Member[];
+  users: ClientUser[];
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -108,39 +134,25 @@ export function TeamForms({ members, canEdit }: {
 
   return (
     <div className="space-y-3 text-sm">
-      <table className="w-full rounded border bg-white text-left text-xs">
-        <thead className="text-slate-500">
-          <tr className="border-b bg-slate-50">
-            <th className="px-4 py-2">Name</th>
-            <th className="px-2 py-2">Role</th>
-            <th className="px-2 py-2">Skills</th>
-            <th className="px-2 py-2">Capacity</th>
-            <th className="px-2 py-2">This week</th>
-            <th className="px-2 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {members.map((m) => (
-            <MemberRow key={m.member_id} member={m} canEdit={canEdit} />
-          ))}
-        </tbody>
-      </table>
+      <Table headers={["Name", "Role", "Skills", "Capacity", "This week", "Login", ""]}>
+        {members.map((m) => (
+          <MemberRow key={m.member_id} member={m} users={users} canEdit={canEdit} />
+        ))}
+      </Table>
 
       {canEdit && (
         <form action={create}
-              className="flex flex-wrap items-end gap-2 rounded border bg-white p-3 text-xs">
+              className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-white p-3 text-xs shadow-sm">
           <input name="name" required placeholder="Name"
-                 className="rounded border px-2 py-1.5" />
+                 className={`${inputCls} w-auto px-2 py-1.5 text-xs`} />
           <input name="role" required placeholder="Role"
-                 className="rounded border px-2 py-1.5" />
+                 className={`${inputCls} w-auto px-2 py-1.5 text-xs`} />
           <input name="skill_tags" placeholder="skills, comma-separated"
-                 className="w-56 rounded border px-2 py-1.5" />
+                 className={`${inputCls} w-56 px-2 py-1.5 text-xs`} />
           <input name="capacity_hrs" type="number" min="1" defaultValue={40}
                  title="weekly capacity hours"
-                 className="w-20 rounded border px-2 py-1.5" />
-          <button className="rounded bg-slate-800 px-3 py-1.5 text-white">
-            Add member
-          </button>
+                 className={`${inputCls} w-20 px-2 py-1.5 text-xs`} />
+          <Button small>Add member</Button>
           {error && <span className="text-red-600">{error}</span>}
         </form>
       )}

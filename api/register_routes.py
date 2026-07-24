@@ -13,8 +13,11 @@ from src.skills import risk_tracking
 
 router = APIRouter(tags=["registers"])
 
+# Members live entirely in the My Work portal (decision 2026-07-23): their
+# only write is the status-report inbox (self-scoped below); management reads
+# are client_admin's.
 CLIENT_WRITE = require_role("client_admin")
-CLIENT_READ = require_role("client_admin", "member")
+CLIENT_READ = require_role("client_admin")
 MEMBER_SUBMIT = require_role("client_admin", "member")
 
 
@@ -35,15 +38,31 @@ class BlockerPatch(BaseModel):
 
 
 @router.post("/status-reports", status_code=201, dependencies=[MEMBER_SUBMIT])
-def submit_status_report(body: StatusReportBody, conn: Conn) -> dict:
+def submit_status_report(body: StatusReportBody, conn: Conn, user: User) -> dict:
     """The confirmed-Q7 manual inbox: the row is parsed by Status Tracking on
-    the next monitoring cycle, not here."""
-    if conn.execute("SELECT 1 FROM tasks WHERE task_id = ?", (body.task_id,)).fetchone() is None:
+    the next monitoring cycle, not here.
+
+    Scoping: the task must belong to the caller's company, and a member may
+    only report AS THEMSELVES (their linked roster row) — client_admin can
+    file on anyone's behalf."""
+    task = conn.execute(
+        "SELECT p.client_id FROM tasks t JOIN projects p ON p.project_id ="
+        " t.project_id WHERE t.task_id = ?", (body.task_id,),
+    ).fetchone()
+    if task is None or task["client_id"] != user["client_id"]:
         raise HTTPException(status_code=404, detail="no such task")
-    if conn.execute(
-        "SELECT 1 FROM team_members WHERE member_id = ?", (body.member_id,)
-    ).fetchone() is None:
+    member = conn.execute(
+        "SELECT user_id FROM team_members WHERE member_id = ? AND client_id = ?",
+        (body.member_id, user["client_id"]),
+    ).fetchone()
+    if member is None:
         raise HTTPException(status_code=404, detail="no such member")
+    if user["role"] == "member" and member["user_id"] != user["user_id"]:
+        raise HTTPException(
+            status_code=403,
+            detail="members report as themselves — this roster row is not"
+                   " linked to your login",
+        )
     cur = conn.execute(
         "INSERT INTO status_reports (task_id, member_id, raw_text) VALUES (?, ?, ?)",
         (body.task_id, body.member_id, body.raw_text),

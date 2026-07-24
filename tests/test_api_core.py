@@ -23,15 +23,18 @@ def env(tmp_path):
         # platform admin sets up the client + users
         client.post("/auth/login", json={"email": creds["email"],
                                          "password": creds["password"]})
-        client.post("/admin/clients", json={"name": "Acme"})
+        acme = client.post("/admin/clients", json={"name": "Acme"}).json()
         admin_user = client.post("/admin/users", json={
+            "client_id": acme["client_id"],
             "email": "admin@acme.test", "display_name": "Client Admin",
             "role": "client_admin"}).json()
         member_user = client.post("/admin/users", json={
+            "client_id": acme["client_id"],
             "email": "dev@acme.test", "display_name": "Dev", "role": "member"}).json()
         # switch to the client_admin session
         client.post("/auth/login", json={"email": "admin@acme.test",
                                          "password": admin_user["password"]})
+        client.admin_password = admin_user["password"]  # for re-login in tests
         yield client, app, member_user
 
 
@@ -142,20 +145,58 @@ def test_invalid_decision_maps_to_409(project):
 
 # --- member role boundaries --------------------------------------------------------
 
-def test_member_can_submit_but_not_resolve_or_configure(project):
+def test_member_lives_in_my_work_portal_only(project):
+    """Decision 2026-07-23: members get the My Work portal, not the
+    management portal. Their API surface is auth + GET /me/work + self-only
+    status reports; management reads/writes are client_admin's."""
     client, app, member, project_id = project
     detail = client.get(f"/projects/{project_id}").json()
-    task_id = detail["tasks"][0]["task_id"]
+    my_task = next(t for t in detail["tasks"] if t["owner_id"] == 1)
+    other_task = next(t for t in detail["tasks"] if t["owner_id"] not in (1, None))
+
+    # unlinked member first: My Work is an explicit empty state, reports 403
+    client.post("/auth/login", json={"email": "dev@acme.test",
+                                     "password": member["password"]})
+    work = client.get("/me/work").json()
+    assert work == {"linked": False, "member": None, "projects": [],
+                    "blockers": [], "pending_task_ids": []}
+    assert client.post("/status-reports", json={
+        "task_id": my_task["task_id"], "member_id": 1, "raw_text": "half done",
+    }).status_code == 403
+
+    # client_admin links the login to roster row 1 (Dev A)
+    client.post("/auth/login", json={"email": "admin@acme.test",
+                                     "password": client.admin_password})
+    linked = client.patch("/team-members/1", json={"user_id": member["user_id"]})
+    assert linked.status_code == 200 and linked.json()["user_id"] == member["user_id"]
 
     client.post("/auth/login", json={"email": "dev@acme.test",
                                      "password": member["password"]})
+    # self-report works; reporting as someone else is refused
     assert client.post("/status-reports", json={
-        "task_id": task_id, "member_id": 1, "raw_text": "about half done",
+        "task_id": my_task["task_id"], "member_id": 1, "raw_text": "about half done",
     }).status_code == 201
+    assert client.post("/status-reports", json={
+        "task_id": other_task["task_id"], "member_id": other_task["owner_id"],
+        "raw_text": "done",
+    }).status_code == 403
+
+    # My Work shows my tasks and the pending (unparsed) report
+    work = client.get("/me/work").json()
+    assert work["linked"] is True and work["member"]["member_id"] == 1
+    my_ids = {t["task_id"] for p in work["projects"] for t in p["tasks"]}
+    assert my_task["task_id"] in my_ids and other_task["task_id"] not in my_ids
+    assert my_task["task_id"] in work["pending_task_ids"]
+
+    # the management surface is gone for members
+    assert client.get(f"/projects/{project_id}").status_code == 403
+    assert client.get("/projects").status_code == 403
+    assert client.get("/review-queue").status_code == 403
+    assert client.get("/config").status_code == 403
+    assert client.get("/team-members").status_code == 403
     assert client.put("/config", json=CONFIG).status_code == 403
     assert client.post("/review-queue/1/resolve",
                        json={"decision": "approved"}).status_code == 403
-    assert client.get(f"/projects/{project_id}").status_code == 200  # full read
 
 
 # --- cycle + registers --------------------------------------------------------------

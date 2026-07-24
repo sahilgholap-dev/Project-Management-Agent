@@ -17,6 +17,7 @@ from api import (
     admin_routes,
     auth_routes,
     config_routes,
+    me_routes,
     project_routes,
     register_routes,
     review_routes,
@@ -39,6 +40,7 @@ def create_app(db_path: str | Path = DEFAULT_DB_PATH) -> FastAPI:
     app.include_router(auth_routes.router)
     app.include_router(admin_routes.router)
     app.include_router(config_routes.router)
+    app.include_router(me_routes.router)
     app.include_router(team_routes.router)
     app.include_router(project_routes.router)
     app.include_router(review_routes.router)
