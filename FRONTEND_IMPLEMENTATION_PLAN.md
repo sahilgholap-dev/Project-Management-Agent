@@ -88,10 +88,27 @@ approve the migration + bootstrap approach before anything is built.**
 | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | `auth_credentials` + `users` lookup |
 
 **Admin portal** (plain CRUD — PRD §4 steps 1-2 have no `src/` functions; they are row inserts)
+
+> **AS-BUILT DEVIATION (post-F5, 2026-07-23, user-requested):** the v1
+> single-client restriction is lifted. The admin portal is now full
+> multi-company CRUD: `GET/POST /admin/clients`,
+> `PATCH/DELETE /admin/clients/{id}` (delete refuses — 409 — once a company
+> has users or projects; governance history is never cascaded away),
+> `GET /admin/users` (all companies, platform admins excluded),
+> `POST /admin/users` (now takes an explicit `client_id`),
+> `PATCH /admin/users/{id}` (name/role/disable-enable — users are disabled,
+> never deleted), `POST /admin/users/{id}/reset-password` (plaintext shown
+> exactly once, same handoff rule as creation — this closes the F5
+> "no password-reset flow" follow-on), and
+> `GET/PUT /admin/clients/{id}/config` so platform_admin can edit any
+> company's config with the same validate-on-every-save contract as
+> `PUT /config` (client_admins keep their own `/config` page).
+
 | Endpoint | Wraps |
 |---|---|
-| `POST /admin/clients` | `INSERT INTO clients` (refused if one exists — single-client v1) |
-| `POST /admin/users` | `INSERT INTO users` + `auth_credentials`; **returns the generated password in the response exactly once, for on-screen display** |
+| `GET/POST/PATCH/DELETE /admin/clients[/{id}]` | `clients` CRUD (safe delete only) |
+| `GET/PUT /admin/clients/{id}/config` | `config_loader` save/load for any company |
+| `GET/POST /admin/users`, `PATCH /admin/users/{id}`, `POST /admin/users/{id}/reset-password` | `users` + `auth_credentials`; **generated/reset passwords are returned in the response exactly once, for on-screen display** |
 
 > **"Send invite" constraint (explicit, by design, not an oversight):** the
 > backend has zero outbound-send capability and the allowlist test enforces
@@ -248,9 +265,10 @@ Sequenced so the review queue and dashboard are usable as early as possible
     revisit before any wider use.
   - the session cookie carries no `Secure` attribute (plain-HTTP localhost
     would drop it); add `Secure` when the tool is ever served over HTTPS.
-  - no password-reset flow for client users (platform admin can only be
-    reset by deleting nexus.db and re-bootstrapping); add a "regenerate
-    password" admin action before wider use.
+  - ~~no password-reset flow for client users~~ RESOLVED post-F5:
+    `POST /admin/users/{id}/reset-password` + admin-portal button (plaintext
+    shown once, manual handoff). The platform_admin account itself still has
+    no reset path other than deleting nexus.db and re-bootstrapping.
 
 ---
 

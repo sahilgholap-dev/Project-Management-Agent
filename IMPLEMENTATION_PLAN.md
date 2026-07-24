@@ -322,3 +322,24 @@ task being assigned always counts at full effort. Dedicated tests in
 capacity-freeing-as-work-completes.
 
 Nothing blocks Phase 0. Implementation starts on your explicit go-ahead.
+
+### E2E-audit follow-ons (2026-07-23, non-blocking — tracked, not scheduled)
+
+From the first full end-to-end run's DB audit. The four confirmed fixes from that
+audit (phase-date write-back, `cost_data_complete` covering unestimated tasks,
+queue-level dedup for persistent breaches, cycle idempotency per `as_of`) are
+IMPLEMENTED (migration `003_review_dedup.sql`); slack re-anchoring is next. These
+remain open:
+
+- **FO-1 — Converted-task phase heuristic.** A meeting action item converted to a
+  task lands in the *earliest open phase* (all phases `planned` → phase 1), which can
+  be semantically wrong (a build task filed under Discovery). Largely cosmetic now
+  that the unestimated task trips `cost_data_complete`. Better heuristic: latest
+  in-progress phase, else earliest not-done phase.
+- **FO-2 — Phase status lifecycle.** `phases.status` never leaves `planned` — task
+  progress and project archive don't roll up. Harmless to math (nothing reads it for
+  decisions), misleading in views and the retrospective ("all phases remain planned").
+- **FO-3 — No re-parse path for resolved-ambiguous status reports.** Once a report is
+  flagged ambiguous its signal is dead even after the clarification is resolved;
+  the member must submit a new report. Candidate: reviewer supplies the structured
+  status on the clarification item, applied on approval.
