@@ -69,6 +69,33 @@ def _peak_load_over_window(
     return max((load.get(w, 0.0) for w in weeks), default=0.0)
 
 
+def _scored_candidates(
+    conn: sqlite3.Connection,
+    task: sqlite3.Row,
+    strategy: str,
+    calendar: WorkingCalendar,
+) -> list[tuple[tuple, int]]:
+    """Capacity-checked candidates for a dated, estimated task, best first."""
+    start = date.fromisoformat(task["planned_start"])
+    end = date.fromisoformat(task["planned_end"])
+    task_skills = set(json.loads(task["skill_tags"]))
+    scored = []
+    for member, overlap in _candidates(conn, task_skills):
+        if not allocation.fits_capacity(
+            conn, member["member_id"], member["capacity_hrs"],
+            task["effort_hours"], start, end, calendar,
+        ):
+            continue
+        peak = _peak_load_over_window(conn, member["member_id"], calendar, start, end)
+        if strategy == "balanced_workload":
+            key = (peak, -overlap, member["member_id"])
+        else:  # best_skill_match
+            key = (-overlap, peak, member["member_id"])
+        scored.append((key, member["member_id"]))
+    scored.sort()
+    return scored
+
+
 def assign_tasks(
     conn: sqlite3.Connection, project_id: int, today: date | None = None
 ) -> dict[int, int | None]:
@@ -116,30 +143,14 @@ def assign_tasks(
             outcomes[task_id] = None
             continue
 
-        start = date.fromisoformat(task["planned_start"])
-        end = date.fromisoformat(task["planned_end"])
-        task_skills = set(json.loads(task["skill_tags"]))
-
-        scored = []
-        for member, overlap in _candidates(conn, task_skills):
-            if not allocation.fits_capacity(
-                conn, member["member_id"], member["capacity_hrs"],
-                task["effort_hours"], start, end, calendar,
-            ):
-                continue
-            peak = _peak_load_over_window(conn, member["member_id"], calendar, start, end)
-            if strategy == "balanced_workload":
-                key = (peak, -overlap, member["member_id"])
-            else:  # best_skill_match
-                key = (-overlap, peak, member["member_id"])
-            scored.append((key, member["member_id"]))
+        scored = _scored_candidates(conn, task, strategy, calendar)
 
         if not scored:
             conn.execute("UPDATE tasks SET unassignable = 1 WHERE task_id = ?", (task_id,))
             raise_review_item(
                 conn, project_id, "unassignable_task",
                 {"task_id": task_id, "title": task["title"],
-                 "required_skills": sorted(task_skills),
+                 "required_skills": sorted(json.loads(task["skill_tags"])),
                  "reason": "no active member with matching skills has remaining"
                            " capacity in every week of the task window"},
                 created_by_skill="assignment_engine",
@@ -147,7 +158,6 @@ def assign_tasks(
             outcomes[task_id] = None
             continue
 
-        scored.sort()
         winner = scored[0][1]
         conn.execute(
             "UPDATE tasks SET owner_id = ?, unassignable = 0 WHERE task_id = ?",
@@ -172,3 +182,86 @@ def assign_tasks(
     )
     conn.commit()
     return outcomes
+
+
+def retry_unassigned(
+    conn: sqlite3.Connection, project_id: int, today: date | None = None
+) -> dict:
+    """Monitoring-cycle re-attempt for tasks assign_tasks flagged unassignable.
+
+    Completed work frees capacity (load is remaining-effort weighted), so a
+    task refused at onboarding may fit later. This pass:
+    - attempts ONLY unowned, flagged, dated+estimated open tasks — existing
+      assignments are never reshuffled, and NULL-effort / windowless tasks
+      stay parked on their clarification items (a human owns those);
+    - raises NOTHING for tasks that still don't fit — they are already
+      flagged and their Tier 1 item already exists (re-raising per cycle is
+      the alert-fatigue pattern the dedup work removed);
+    - honors skill_depth.assignment_engine: 'autonomous' assigns directly;
+      'assisted'/'manual' raises ONE deduped Tier 1 suggestion per task and
+      leaves the assignment to a human.
+    """
+    calendar = WorkingCalendar(config_loader.resolve(conn, project_id, "working_calendar"))
+    strategy = config_loader.resolve(conn, project_id, "assignment_strategy")
+    depth = (config_loader.resolve(conn, project_id, "skill_depth")
+             or {}).get("assignment_engine", "assisted")
+    today = today or date.today()
+
+    retryable = conn.execute(
+        "SELECT task_id, title, effort_hours, skill_tags, planned_start,"
+        "       planned_end, on_critical_path"
+        " FROM tasks"
+        " WHERE project_id = ? AND owner_id IS NULL AND unassignable = 1"
+        "   AND status NOT IN ('done','cancelled')"
+        "   AND effort_hours IS NOT NULL"
+        "   AND planned_start IS NOT NULL AND planned_end IS NOT NULL"
+        " ORDER BY on_critical_path DESC, planned_start ASC, task_id ASC",
+        (project_id,),
+    ).fetchall()
+
+    assigned: dict[int, int] = {}
+    suggested: list[int] = []
+    touched_members: set[int] = set()
+    for task in retryable:
+        scored = _scored_candidates(conn, task, strategy, calendar)
+        if not scored:
+            continue  # still doesn't fit; the original flag + item stand
+        winner = scored[0][1]
+        if depth == "autonomous":
+            conn.execute(
+                "UPDATE tasks SET owner_id = ?, unassignable = 0 WHERE task_id = ?",
+                (winner, task["task_id"]),
+            )
+            assigned[task["task_id"]] = winner
+            touched_members.add(winner)
+        else:
+            member = conn.execute(
+                "SELECT name FROM team_members WHERE member_id = ?", (winner,)
+            ).fetchone()
+            raise_review_item(
+                conn, project_id, "clarification",
+                {"task_id": task["task_id"], "title": task["title"],
+                 "reason": f"capacity has freed up: '{task['title']}' now fits"
+                           f" {member['name']} — assign it? (assignment_engine"
+                           " depth is not autonomous, so no auto-assignment)",
+                 "suggested_member_id": winner},
+                created_by_skill="assignment_engine",
+                dedup_key=f"assignable_again:{task['task_id']}",
+            )
+            suggested.append(task["task_id"])
+
+    for member_id in touched_members:
+        allocation.refresh_allocated_cache(conn, member_id, calendar, today)
+
+    if retryable:
+        audit.log_action(
+            conn,
+            skill="assignment_engine",
+            action="retry_unassigned",
+            input_summary={"retryable": len(retryable), "depth": depth},
+            output_summary={"assigned": assigned, "suggested": suggested},
+            project_id=project_id,
+        )
+    conn.commit()
+    return {"retried": len(retryable), "assigned": len(assigned),
+            "suggested": len(suggested)}

@@ -159,6 +159,18 @@ def build_monitoring_graph(conn: sqlite3.Connection, sonnet: SonnetClient | None
         results["slips"] = {"handled": len(slip_results), "explained": explained}
         return {"results": results}
 
+    def reassign(state: ProjectState) -> dict:
+        # Completed work frees capacity (remaining-effort weighting), so
+        # previously-unassignable tasks get one retry per cycle. Existing
+        # assignments are never reshuffled; still-stuck tasks raise nothing
+        # (their flag + Tier 1 item already exist).
+        result = assignment_engine.retry_unassigned(
+            conn, state["project_id"], today=_today(state)
+        )
+        results = dict(state.get("results", {}))
+        results["reassign"] = result
+        return {"results": results}
+
     def escalations(state: ProjectState) -> dict:
         result = escalation.check_escalations(conn)
         results = dict(state.get("results", {}))
@@ -172,9 +184,19 @@ def build_monitoring_graph(conn: sqlite3.Connection, sonnet: SonnetClient | None
         return {"results": results}
 
     def log_cycle(state: ProjectState) -> dict:
+        # OQ-4's simulation-date picker means testers re-run dates freely; a
+        # re-run must be idempotent (the dedup_key mechanism keeps recurring
+        # alerts from duplicating) AND visible — the audit entry says so.
+        rerun = conn.execute(
+            "SELECT COUNT(*) AS n FROM audit_log"
+            " WHERE skill = 'orchestrator' AND action = 'monitoring_cycle'"
+            "   AND project_id = ? AND input_summary LIKE ?",
+            (state["project_id"], f'%"as_of": "{state["today"]}"%'),
+        ).fetchone()["n"] > 0
         audit.log_action(
             conn, skill="orchestrator", action="monitoring_cycle",
-            input_summary={"as_of": state["today"], "paused": state.get("paused", False)},
+            input_summary={"as_of": state["today"], "paused": state.get("paused", False),
+                           "rerun": rerun},
             output_summary=state.get("results", {}),
             project_id=state["project_id"],
         )
@@ -184,7 +206,8 @@ def build_monitoring_graph(conn: sqlite3.Connection, sonnet: SonnetClient | None
     graph = StateGraph(ProjectState)
     for name, fn in [
         ("pause_gate", pause_gate), ("status", status), ("risk", risk),
-        ("slips", slips), ("escalations", escalations), ("comms", comms),
+        ("slips", slips), ("reassign", reassign),
+        ("escalations", escalations), ("comms", comms),
         ("log_cycle", log_cycle),
     ]:
         graph.add_node(name, fn)
@@ -197,7 +220,8 @@ def build_monitoring_graph(conn: sqlite3.Connection, sonnet: SonnetClient | None
     )
     graph.add_edge("status", "risk")
     graph.add_edge("risk", "slips")
-    graph.add_edge("slips", "escalations")
+    graph.add_edge("slips", "reassign")
+    graph.add_edge("reassign", "escalations")
     graph.add_conditional_edges(
         "escalations",
         lambda s: "comms" if (s.get("draft_comms") and not s.get("paused")) else "done",

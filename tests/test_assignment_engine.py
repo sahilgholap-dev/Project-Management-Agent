@@ -160,3 +160,96 @@ def test_run_is_audit_logged(world):
         "SELECT COUNT(*) AS n FROM audit_log WHERE skill = 'assignment_engine'"
     ).fetchone()["n"]
     assert n == 1
+
+
+# --- monitoring-cycle retry (capacity freed by completed work) -------------------
+
+def _add_qa_task_that_cannot_fit(world):
+    """T20 needs qa, 40h, in the same week M3 (the only qa member) already
+    carries T7 (40h, Aug 18-24) — over capacity, so it flags unassignable."""
+    world.execute(
+        "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours,"
+        " skill_tags, planned_start, planned_end)"
+        " VALUES (20, 2, ?, 'T20 extra QA', 40, ?, '2026-08-18', '2026-08-24')",
+        (ka.PROJECT_ID, json.dumps(["qa"])),
+    )
+    world.commit()
+
+
+def _complete_t7(world):
+    world.execute(
+        "UPDATE tasks SET status = 'done', percent_complete = 100,"
+        " actual_end = '2026-08-24' WHERE task_id = 7"
+    )
+    world.commit()
+
+
+def test_retry_assigns_when_completed_work_frees_capacity(world):
+    assignment_engine.assign_tasks(world, ka.PROJECT_ID, today=TODAY)
+    _add_qa_task_that_cannot_fit(world)
+    assignment_engine.assign_tasks(world, ka.PROJECT_ID, today=TODAY)
+    assert world.execute(
+        "SELECT unassignable FROM tasks WHERE task_id = 20"
+    ).fetchone()["unassignable"] == 1
+    items_before = world.execute(
+        "SELECT COUNT(*) AS n FROM review_queue WHERE item_type = 'unassignable_task'"
+    ).fetchone()["n"]
+
+    # nothing freed yet: retry is a no-op and raises nothing
+    result = assignment_engine.retry_unassigned(world, ka.PROJECT_ID, today=TODAY)
+    assert result == {"retried": 1, "assigned": 0, "suggested": 0}
+
+    # T7 completes -> remaining-effort load drops -> T20 now fits M3
+    _complete_t7(world)
+    result = assignment_engine.retry_unassigned(world, ka.PROJECT_ID, today=TODAY)
+    assert result == {"retried": 1, "assigned": 1, "suggested": 0}
+    task = world.execute(
+        "SELECT owner_id, unassignable FROM tasks WHERE task_id = 20"
+    ).fetchone()
+    assert (task["owner_id"], task["unassignable"]) == (ka.M3, 0)
+
+    # no NEW queue items in either retry — the original Tier 1 item stands
+    items_after = world.execute(
+        "SELECT COUNT(*) AS n FROM review_queue WHERE item_type = 'unassignable_task'"
+    ).fetchone()["n"]
+    assert items_after == items_before
+
+
+def test_retry_never_touches_existing_assignments(world):
+    assignment_engine.assign_tasks(world, ka.PROJECT_ID, today=TODAY)
+    owners_before = {r["task_id"]: r["owner_id"] for r in world.execute(
+        "SELECT task_id, owner_id FROM tasks WHERE owner_id IS NOT NULL"
+    )}
+    _complete_t7(world)
+    assignment_engine.retry_unassigned(world, ka.PROJECT_ID, today=TODAY)
+    owners_after = {r["task_id"]: r["owner_id"] for r in world.execute(
+        "SELECT task_id, owner_id FROM tasks WHERE task_id IN ({})".format(
+            ",".join(map(str, owners_before)))
+    )}
+    assert owners_after == owners_before
+
+
+def test_retry_suggests_instead_of_assigning_when_not_autonomous(world):
+    import json as _json
+
+    assignment_engine.assign_tasks(world, ka.PROJECT_ID, today=TODAY)
+    _add_qa_task_that_cannot_fit(world)
+    assignment_engine.assign_tasks(world, ka.PROJECT_ID, today=TODAY)
+    _complete_t7(world)
+    depth = dict(ka.CONFIG["skill_depth"], assignment_engine="assisted")
+    config_loader.save_project_overrides(world, ka.PROJECT_ID, {"skill_depth": depth})
+
+    # twice: the suggestion is deduped to ONE open item, task stays unowned
+    for _ in range(2):
+        result = assignment_engine.retry_unassigned(world, ka.PROJECT_ID, today=TODAY)
+        assert result == {"retried": 1, "assigned": 0, "suggested": 1}
+    task = world.execute(
+        "SELECT owner_id, unassignable FROM tasks WHERE task_id = 20"
+    ).fetchone()
+    assert (task["owner_id"], task["unassignable"]) == (None, 1)
+    suggestions = world.execute(
+        "SELECT payload FROM review_queue WHERE dedup_key = 'assignable_again:20'"
+    ).fetchall()
+    assert len(suggestions) == 1
+    payload = _json.loads(suggestions[0]["payload"])
+    assert payload["suggested_member_id"] == ka.M3
