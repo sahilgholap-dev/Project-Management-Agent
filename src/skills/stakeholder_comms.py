@@ -105,6 +105,8 @@ def run(
             {"reason": "no stakeholders configured for this project; cannot"
                        " determine a comms audience"},
             created_by_skill="stakeholder_comms",
+            # persistent config gap -> one open item, not one per comms run
+            dedup_key="comms:no_audience",
         )
         conn.commit()
         return {}
@@ -135,6 +137,9 @@ def run(
             {"audience_type": audience, "draft": draft,
              "data_basis": data, "voice_style": voice_style},
             created_by_skill="stakeholder_comms",
+            # one unreviewed draft per audience at a time: while it sits in the
+            # queue, later runs refresh its "latest" instead of stacking drafts
+            dedup_key=f"comms_draft:{audience}",
         )
 
     audit.log_action(

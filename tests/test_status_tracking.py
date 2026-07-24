@@ -219,14 +219,39 @@ def test_breach_raises_off_track_alert_and_rule_risk(world):
     assert risk["source"] == "rule_based" and risk["status"] == "open"
 
 
-def test_second_cycle_updates_risk_instead_of_duplicating(world):
+def test_second_cycle_updates_risk_and_alert_instead_of_duplicating(world):
+    """A persistent breach keeps ONE open register entry AND one open queue
+    alert (dedup_key): the alert's payload gains a 'latest' snapshot so the
+    reviewer sees current numbers, instead of a fresh Tier 1 item per cycle."""
     _make_behind(world)
     status_tracking.run_cycle(world, PROJECT_ID, date(2026, 8, 12), FakeSonnet([]))
     status_tracking.run_cycle(world, PROJECT_ID, date(2026, 8, 13), FakeSonnet([]))
     assert world.execute("SELECT COUNT(*) AS n FROM risks_issues").fetchone()["n"] == 1
-    assert world.execute(
+    alerts = world.execute(
+        "SELECT payload FROM review_queue WHERE item_type = 'off_track_alert'"
+    ).fetchall()
+    assert len(alerts) == 1
+    payload = json.loads(alerts[0]["payload"])
+    assert payload["value_hours"] == pytest.approx(-24)          # day-1 numbers
+    assert payload["latest"]["value_hours"] == pytest.approx(-32)  # day-2 refresh
+
+
+def test_resolved_alert_recurrence_raises_fresh_item(world):
+    """Dedup only holds while unresolved — after a human resolves the alert,
+    the still-breaching next cycle raises a NEW item."""
+    from src.governance.review_queue import resolve_item
+
+    _make_behind(world)
+    status_tracking.run_cycle(world, PROJECT_ID, date(2026, 8, 12), FakeSonnet([]))
+    item = world.execute(
+        "SELECT item_id FROM review_queue WHERE item_type = 'off_track_alert'"
+    ).fetchone()
+    resolve_item(world, item["item_id"], resolved_by=1, decision="approved")
+    status_tracking.run_cycle(world, PROJECT_ID, date(2026, 8, 13), FakeSonnet([]))
+    n = world.execute(
         "SELECT COUNT(*) AS n FROM review_queue WHERE item_type = 'off_track_alert'"
-    ).fetchone()["n"] == 2  # alert each cycle, register entry updated in place
+    ).fetchone()["n"]
+    assert n == 2
 
 
 def test_unreported_hours_flag_themselves(world):
@@ -273,3 +298,44 @@ def test_cycle_is_audit_logged(world):
         "SELECT COUNT(*) AS n FROM audit_log WHERE skill = 'status_tracking'"
     ).fetchone()["n"]
     assert n == 1
+
+
+def test_unestimated_task_breaks_cost_data_complete(world):
+    """The converted-meeting-task case: a live task with NULL effort is
+    excluded from PV/EV, so the numbers understate known scope —
+    cost_data_complete must go false for ANY excluded-cost reason, not only
+    unreported hours."""
+    world.execute(
+        "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours,"
+        " status) VALUES (3, 1, ?, 'Build the honeypot module', NULL, 'todo')",
+        (PROJECT_ID,),
+    )
+    world.commit()
+    snap = evm.snapshot(world, PROJECT_ID, date(2026, 8, 10), CAL)
+    assert snap.unreported_started_tasks == ()
+    assert snap.unestimated_tasks == (3,)
+    assert snap.cost_data_complete is False
+
+    # the cycle raises ONE clarification naming the unestimated task, and a
+    # second cycle refreshes that same item instead of raising another
+    status_tracking.run_cycle(world, PROJECT_ID, date(2026, 8, 10), FakeSonnet([]))
+    status_tracking.run_cycle(world, PROJECT_ID, date(2026, 8, 11), FakeSonnet([]))
+    items = world.execute(
+        "SELECT payload FROM review_queue WHERE item_type = 'clarification'"
+    ).fetchall()
+    assert len(items) == 1
+    payload = json.loads(items[0]["payload"])
+    assert payload["unestimated_task_ids"] == [3]
+    assert payload["cv_understated"] is True
+
+
+def test_cancelled_unestimated_task_does_not_flag(world):
+    world.execute(
+        "INSERT INTO tasks (task_id, phase_id, project_id, title, effort_hours,"
+        " status) VALUES (3, 1, ?, 'dropped', NULL, 'cancelled')",
+        (PROJECT_ID,),
+    )
+    world.commit()
+    snap = evm.snapshot(world, PROJECT_ID, date(2026, 8, 10), CAL)
+    assert snap.unestimated_tasks == ()
+    assert snap.cost_data_complete is True

@@ -201,3 +201,71 @@ def test_missing_timeline_is_a_hard_error(world):
     world.execute("UPDATE projects SET timeline_end = NULL WHERE project_id = ?", (ka.PROJECT_ID,))
     with pytest.raises(scheduler.SchedulerError):
         scheduler.schedule_project(world, ka.PROJECT_ID)
+
+
+def test_phase_dates_roll_up_from_scheduled_tasks(world):
+    """Phase rows must agree with their own tasks after scheduling: the
+    LLM-proposed windows are only an input constraint; the stored phase
+    dates become the min/max of the scheduled task dates."""
+    scheduler.schedule_project(world, ka.PROJECT_ID)
+    for phase in world.execute(
+        "SELECT phase_id, planned_start, planned_end FROM phases"
+        " WHERE project_id = ?", (ka.PROJECT_ID,)
+    ):
+        extent = world.execute(
+            "SELECT MIN(planned_start) AS s, MAX(planned_end) AS e FROM tasks"
+            " WHERE phase_id = ? AND planned_start IS NOT NULL"
+            "   AND status != 'cancelled'",
+            (phase["phase_id"],),
+        ).fetchone()
+        if extent["s"] is not None:
+            assert phase["planned_start"] == extent["s"]
+            assert phase["planned_end"] == extent["e"]
+
+
+def test_infeasible_replan_refreshes_open_item_instead_of_duplicating(world):
+    """OQ-4 re-runs: scheduling twice while the plan is STILL infeasible keeps
+    one open infeasible_plan item, its payload's 'latest' carrying the newest
+    numbers."""
+    import json
+
+    world.execute(
+        "UPDATE projects SET timeline_end = '2026-08-21' WHERE project_id = ?",
+        (ka.PROJECT_ID,),
+    )
+    scheduler.schedule_project(world, ka.PROJECT_ID)
+    scheduler.schedule_project(world, ka.PROJECT_ID)
+    items = world.execute(
+        "SELECT payload FROM review_queue WHERE item_type = 'infeasible_plan'"
+    ).fetchall()
+    assert len(items) == 1
+    payload = json.loads(items[0]["payload"])
+    assert "latest" in payload  # second run refreshed, not duplicated
+
+
+def test_infeasible_plan_keeps_meaningful_critical_path(world):
+    """Slack is anchored to the COMPUTED finish, not the deadline: an
+    infeasible plan must NOT mark everything critical with negative slack.
+    Deadline lateness is a separate number (behind_working_days in the audit
+    entry and project detail), never smeared across tasks."""
+    import json
+
+    world.execute(
+        "UPDATE projects SET timeline_end = '2026-08-21' WHERE project_id = ?",
+        (ka.PROJECT_ID,),
+    )
+    scheduler.schedule_project(world, ka.PROJECT_ID)
+    rows = world.execute(
+        "SELECT task_id, slack_days, on_critical_path FROM tasks"
+    ).fetchall()
+    assert all(r["slack_days"] >= 0 for r in rows)  # no negative slack, ever
+    # the structural longest chain is unchanged by the deadline move
+    critical = {r["task_id"] for r in rows if r["on_critical_path"]}
+    assert critical == {1, 2, 4, 5, 7, 9, 10}
+    assert {r["task_id"] for r in rows if r["slack_days"] > 0} == {3, 6, 8}
+    # lateness is reported as its own number: Aug 27 finish vs Aug 21 deadline
+    entry = world.execute(
+        "SELECT output_summary FROM audit_log WHERE skill = 'scheduler'"
+        " ORDER BY audit_id DESC LIMIT 1"
+    ).fetchone()
+    assert json.loads(entry["output_summary"])["behind_working_days"] == 4

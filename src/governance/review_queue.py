@@ -28,16 +28,37 @@ def raise_review_item(
     item_type: str,
     payload: Any,
     created_by_skill: str,
+    dedup_key: str | None = None,
 ) -> int:
     """Insert a pending review item and return its id. Tier is looked up from
-    the frozen map — callers cannot choose it."""
+    the frozen map — callers cannot choose it.
+
+    dedup_key names a RECURRING condition (e.g. "off_track:schedule_variance").
+    While an item with the same (project, type, key) is still unresolved, the
+    condition is NOT re-raised: the existing item's payload gains a "latest"
+    snapshot (so the reviewer sees current numbers) and its id is returned.
+    Once resolved, the next occurrence raises a fresh item — dedup never
+    suppresses a NEW alert after a human has dealt with the previous one.
+    """
     tier = TIER_BY_ITEM_TYPE.get(item_type)
     if tier is None:
         raise ValueError(f"unknown review item_type: {item_type}")
+    if dedup_key is not None:
+        existing = conn.execute(
+            "SELECT item_id FROM review_queue"
+            " WHERE project_id = ? AND item_type = ? AND dedup_key = ?"
+            "   AND status IN ('pending', 'escalated', 'paused')"
+            " ORDER BY item_id LIMIT 1",
+            (project_id, item_type, dedup_key),
+        ).fetchone()
+        if existing is not None:
+            annotate_item(conn, existing["item_id"], "latest", payload)
+            return existing["item_id"]
     cur = conn.execute(
-        "INSERT INTO review_queue (project_id, tier, item_type, payload, created_by_skill)"
-        " VALUES (?, ?, ?, ?, ?)",
-        (project_id, tier, item_type, json.dumps(payload), created_by_skill),
+        "INSERT INTO review_queue (project_id, tier, item_type, payload,"
+        " created_by_skill, dedup_key) VALUES (?, ?, ?, ?, ?, ?)",
+        (project_id, tier, item_type, json.dumps(payload), created_by_skill,
+         dedup_key),
     )
     item_id = cur.lastrowid
     audit.log_action(
@@ -59,7 +80,7 @@ def annotate_item(conn: sqlite3.Connection, item_id: int, key: str, value: Any) 
     row = conn.execute(
         "SELECT payload, status FROM review_queue WHERE item_id = ?", (item_id,)
     ).fetchone()
-    if row is None or row["status"] not in ("pending", "escalated"):
+    if row is None or row["status"] not in ("pending", "escalated", "paused"):
         return
     payload = json.loads(row["payload"])
     payload[key] = value

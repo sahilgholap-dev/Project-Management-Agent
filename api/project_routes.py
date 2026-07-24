@@ -4,7 +4,7 @@ forms — every verb names the src/ function it wraps (thin-wrapper rule)."""
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -14,14 +14,14 @@ from api.errors import backend_errors
 from api.sonnet_dep import get_sonnet
 from src import config_loader
 from src.governance import escalation, forms
+from src.lib.calendar import WorkingCalendar
 from src.orchestrator import graph, lifecycle
 from src.skills import meeting_summary
 
 router = APIRouter(tags=["projects"])
 
 CLIENT_WRITE = require_role("client_admin")
-CLIENT_READ = require_role("client_admin", "member")
-MEMBER_SUBMIT = require_role("client_admin", "member")
+CLIENT_READ = require_role("client_admin")  # members: My Work portal only
 
 
 class ProjectBody(BaseModel):
@@ -115,6 +115,19 @@ def project_detail(project_id: int, conn: Conn) -> dict:
     detail = dict(project)
     detail["config_overrides"] = json.loads(detail["config_overrides"] or "{}")
     detail.update(phases=phases, tasks=tasks, dependencies=dependencies)
+    # Deadline lateness as its own number (slack is anchored to the computed
+    # finish, so it can't carry this): working days between the stated
+    # timeline_end and the latest scheduled task end, 0 when on time.
+    detail["behind_working_days"] = 0
+    latest_end = max((t["planned_end"] for t in tasks if t["planned_end"]),
+                     default=None)
+    if latest_end and project["timeline_end"] and latest_end > project["timeline_end"]:
+        calendar = WorkingCalendar(
+            config_loader.resolve(conn, project_id, "working_calendar"))
+        detail["behind_working_days"] = calendar.count_working_days(
+            date.fromisoformat(project["timeline_end"]) + timedelta(days=1),
+            date.fromisoformat(latest_end),
+        )  # working days strictly after the deadline
     return detail
 
 
@@ -172,7 +185,7 @@ def resume(project_id: int, conn: Conn, user: User) -> dict:
 
 
 @router.post("/projects/{project_id}/meetings", status_code=201,
-             dependencies=[MEMBER_SUBMIT])
+             dependencies=[CLIENT_WRITE])
 def upload_meeting(project_id: int, body: MeetingBody, conn: Conn, user: User,
                    sonnet=Depends(get_sonnet)) -> dict:
     """Wraps skills.meeting_summary.run (three-bucket extraction)."""

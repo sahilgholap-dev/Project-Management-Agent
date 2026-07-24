@@ -21,6 +21,11 @@ CV = EV - AC (negative = over cost).
 
 Tasks with NULL effort_hours are excluded everywhere (NEW-OQ 4 treatment —
 they are already flagged and cannot carry unconfirmed numbers into this math).
+But EXCLUDED must never read as HEALTHY: any live task missing its effort
+estimate (e.g. a meeting action item converted to a task before a human sized
+it) lands in unestimated_tasks, and cost_data_complete goes false while any
+task that should contribute cost is invisible to this math — for ANY reason,
+unreported hours or a missing estimate alike.
 """
 
 from __future__ import annotations
@@ -40,6 +45,9 @@ class EvmSnapshot:
     # started tasks (work underway or done) with no reported hours: AC — and
     # therefore CV — is understated while this is non-empty
     unreported_started_tasks: tuple[int, ...] = ()
+    # live tasks with NULL effort_hours: excluded from PV/EV entirely, so the
+    # whole snapshot understates known scope while this is non-empty
+    unestimated_tasks: tuple[int, ...] = ()
 
     @property
     def schedule_variance(self) -> float:
@@ -51,7 +59,10 @@ class EvmSnapshot:
 
     @property
     def cost_data_complete(self) -> bool:
-        return not self.unreported_started_tasks
+        """False whenever ANY task that should contribute cost is excluded
+        from the math for ANY reason — unreported hours OR a missing effort
+        estimate — never only the unreported-hours case."""
+        return not self.unreported_started_tasks and not self.unestimated_tasks
 
 
 def planned_fraction(
@@ -115,9 +126,23 @@ def snapshot(
         )
     )
 
+    # Excluded-but-known scope flags itself too: a live task with no effort
+    # estimate contributes nothing to PV/EV above, so the snapshot understates
+    # scope while any exist (the converted-meeting-task case).
+    unestimated = tuple(
+        r["task_id"]
+        for r in conn.execute(
+            "SELECT task_id FROM tasks"
+            " WHERE project_id = ? AND status != 'cancelled'"
+            "   AND effort_hours IS NULL ORDER BY task_id",
+            (project_id,),
+        )
+    )
+
     return EvmSnapshot(
         planned_value=round(pv, 6),
         earned_value=round(ev, 6),
         actual_cost=round(ac_row["ac"], 6),
         unreported_started_tasks=unreported,
+        unestimated_tasks=unestimated,
     )

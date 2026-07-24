@@ -58,17 +58,23 @@ def compute_cpm(
     durations: dict[int, int],
     graph: TaskGraph,
     es_floor: dict[int, int],
-    lf_cap: dict[int, int],
     fixed_ef: dict[int, int] | None = None,
     restrict_to: set[int] | None = None,
 ) -> dict[int, dict]:
     """Pure CPM over working-day indexes.
 
-    durations: task -> working days (>=1). es_floor/lf_cap: per-task index
-    bounds (phase window intersected with project window). fixed_ef: tasks
-    whose finish is pinned (completed tasks during a slip re-run) — they are
-    not recomputed and act only as constraints. restrict_to: if given, only
-    these tasks get results (a slip re-run restricted to affected tasks).
+    durations: task -> working days (>=1). es_floor: per-task earliest-start
+    index (phase/project start). fixed_ef: tasks whose finish is pinned
+    (completed tasks during a slip re-run) — they are not recomputed and act
+    only as constraints. restrict_to: if given, only these tasks get results
+    (a slip re-run restricted to affected tasks).
+
+    Slack is anchored to the COMPUTED project finish (max EF), not the stated
+    deadline: the critical path is the structural longest chain and stays
+    meaningful even when the plan overruns the timeline. "How late is the
+    plan against the deadline" is a separate project-level number
+    (behind-deadline working days, reported by schedule_project), never
+    encoded as negative slack on every task.
     """
     fixed_ef = fixed_ef or {}
     order = graph.topological_order()
@@ -86,10 +92,11 @@ def compute_cpm(
         es[t] = earliest
         ef[t] = earliest + durations[t] - 1
 
+    horizon = max(ef.values())
     ls: dict[int, int] = {}
     lf: dict[int, int] = {}
     for t in reversed(order):
-        latest = lf_cap.get(t, max(ef.values()))
+        latest = horizon
         for succ in graph.successors[t]:
             latest = min(latest, ls[succ] - 1)
         lf[t] = latest
@@ -232,19 +239,17 @@ def schedule_project(
     project_end_idx = _idx_at_or_before(axis, end)
 
     graph = TaskGraph.for_project(conn, project_id).without(blocked_downstream)
-    durations, es_floor, lf_cap = {}, {}, {}
+    durations, es_floor = {}, {}
     for t, row in tasks.items():
         durations[t] = max(1, math.ceil(row["effort_hours"] / calendar.hours_per_day))
         phase_start = date.fromisoformat(row["phase_start"])
-        phase_end = date.fromisoformat(row["phase_end"])
         es_floor[t] = max(0, _idx_at_or_after(axis, max(phase_start, start)))
-        lf_cap[t] = min(project_end_idx, _idx_at_or_before(axis, phase_end))
 
     fixed_ef = {
         t: _idx_at_or_before(axis, d) for t, d in (fixed_ef_dates or {}).items()
     }
 
-    cpm = compute_cpm(durations, graph, es_floor, lf_cap, fixed_ef, restrict_to)
+    cpm = compute_cpm(durations, graph, es_floor, fixed_ef, restrict_to)
 
     results = {}
     for t, r in cpm.items():
@@ -267,6 +272,23 @@ def schedule_project(
             "on_critical_path": r["on_critical_path"],
         }
 
+    # Phase windows roll up from their SCHEDULED tasks. The LLM-proposed phase
+    # dates are only an input constraint (es_floor/lf_cap above, read before
+    # this point); once CPM has written real task dates, a phase row that
+    # still shows the proposal would contradict its own tasks in every view.
+    # Phases whose tasks are all unestimated/excluded keep their proposal.
+    conn.execute(
+        "UPDATE phases SET"
+        "  planned_start = COALESCE((SELECT MIN(t.planned_start) FROM tasks t"
+        "    WHERE t.phase_id = phases.phase_id AND t.planned_start IS NOT NULL"
+        "      AND t.status != 'cancelled'), planned_start),"
+        "  planned_end = COALESCE((SELECT MAX(t.planned_end) FROM tasks t"
+        "    WHERE t.phase_id = phases.phase_id AND t.planned_end IS NOT NULL"
+        "      AND t.status != 'cancelled'), planned_end)"
+        " WHERE project_id = ?",
+        (project_id,),
+    )
+
     project_finish_idx = max(r["ef"] for r in cpm.values()) if cpm else 0
     infeasible = project_finish_idx > project_end_idx
     if infeasible:
@@ -280,6 +302,9 @@ def schedule_project(
                 "overrun_working_days": project_finish_idx - project_end_idx,
             },
             created_by_skill="scheduler",
+            # a re-schedule while the plan is STILL infeasible refreshes the
+            # open item's "latest" numbers instead of raising a second one
+            dedup_key="infeasible_plan",
         )
 
     audit.log_action(
@@ -290,6 +315,9 @@ def schedule_project(
         output_summary={
             "computed_finish": axis[project_finish_idx].isoformat() if cpm else None,
             "infeasible": infeasible,
+            # deadline lateness lives HERE (and in the project detail API),
+            # never as negative slack smeared across every task
+            "behind_working_days": max(0, project_finish_idx - project_end_idx),
         },
         project_id=project_id,
     )

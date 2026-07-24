@@ -229,3 +229,74 @@ def test_signoff_packet_rejection_propagates(world):
         (created["packet_id"],),
     ).fetchone()["status"]
     assert status == "rejected"
+
+
+# --- queue-level dedup (recurring conditions) -----------------------------------
+
+def test_dedup_key_keeps_one_unresolved_item_and_tracks_latest(world):
+    """A persistent condition (same project/type/dedup_key) must not spawn a
+    fresh item every cycle: the open item absorbs the new numbers as
+    payload['latest'] and its id is returned."""
+    import json
+
+    first = raise_review_item(
+        world, PROJECT_ID, "off_track_alert", {"value_hours": -24},
+        created_by_skill="test", dedup_key="off_track:schedule_variance",
+    )
+    second = raise_review_item(
+        world, PROJECT_ID, "off_track_alert", {"value_hours": -40},
+        created_by_skill="test", dedup_key="off_track:schedule_variance",
+    )
+    assert second == first
+    n = world.execute(
+        "SELECT COUNT(*) AS n FROM review_queue WHERE item_type = 'off_track_alert'"
+    ).fetchone()["n"]
+    assert n == 1
+    payload = json.loads(world.execute(
+        "SELECT payload FROM review_queue WHERE item_id = ?", (first,)
+    ).fetchone()["payload"])
+    assert payload["value_hours"] == -24            # original preserved
+    assert payload["latest"]["value_hours"] == -40  # current state visible
+
+
+def test_dedup_never_suppresses_after_resolution(world):
+    """Dedup applies only WHILE unresolved: once a human dealt with the item,
+    a recurrence is a new alert, not a silently-updated old one."""
+    first = raise_review_item(
+        world, PROJECT_ID, "off_track_alert", {"value_hours": -24},
+        created_by_skill="test", dedup_key="off_track:schedule_variance",
+    )
+    resolve_item(world, first, resolved_by=1, decision="approved")
+    second = raise_review_item(
+        world, PROJECT_ID, "off_track_alert", {"value_hours": -40},
+        created_by_skill="test", dedup_key="off_track:schedule_variance",
+    )
+    assert second != first
+
+
+def test_dedup_scoped_by_key_and_project(world):
+    a = raise_review_item(world, PROJECT_ID, "off_track_alert", {"m": "sv"},
+                          created_by_skill="test", dedup_key="off_track:sv")
+    b = raise_review_item(world, PROJECT_ID, "off_track_alert", {"m": "cv"},
+                          created_by_skill="test", dedup_key="off_track:cv")
+    c = raise_review_item(world, PROJECT_ID, "off_track_alert", {"m": "sv"},
+                          created_by_skill="test")  # no key -> never dedups
+    assert len({a, b, c}) == 3
+
+
+def test_dedup_holds_while_item_is_paused(world):
+    """An item that escalated all the way to paused is still 'unresolved' —
+    the condition must not re-raise around it."""
+    first = raise_review_item(
+        world, PROJECT_ID, "off_track_alert", {"value_hours": -24},
+        created_by_skill="test", dedup_key="off_track:schedule_variance",
+    )
+    world.execute(
+        "UPDATE review_queue SET status = 'paused' WHERE item_id = ?", (first,)
+    )
+    world.commit()
+    second = raise_review_item(
+        world, PROJECT_ID, "off_track_alert", {"value_hours": -40},
+        created_by_skill="test", dedup_key="off_track:schedule_variance",
+    )
+    assert second == first
